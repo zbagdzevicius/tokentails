@@ -291,6 +291,55 @@ describe('bot personas: the party lifecycle', () => {
         expect(p.mm!.casual!.personas!.every(x => !!x.hero)).toBe(true);
     });
 
+    it('matched co-op (founder, 2026-11-20): every bot seat is a player too; each plays the champion it showed', () => {
+        for (let round = 0; round < 12; round++) {
+            const t = setup();
+            const p = t.svc.createMatched(
+                [
+                    { id: 'a', identity: ident('a') },
+                    { id: 'b', identity: ident('b') },
+                ],
+                { match: `c${round}`, side: 'cat', difficulty: 'normal' }
+            );
+            const v0 = t.svc.view(p, 'b');
+            // co-op hides no team: names now, champions as they lock
+            expect(v0.mm!.fill!.map(x => x.slot)).toEqual([2, 3, 4, 5]);
+            for (const x of v0.mm!.fill!) expect(x.name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+            expect(JSON.stringify(v0)).not.toMatch(/"Bot"|lockAtMs|seed/);
+            t.advance(PARTY_TIMING.personaLockMs[1] + 500);
+            // the other team locks on its own; the humans' bot teammate follows slot 0's lock
+            const holder = p.mm!.coop!;
+            expect(holder.personas!.filter(x => x.slot >= 3).every(x => sideOf(x.hero!) === 'dog')).toBe(true);
+            expect(holder.personas!.find(x => x.slot === 2)!.hero).toBeUndefined();
+            t.svc.lock('a', catOf(), ps.TRICK_IDS[0]);
+            t.svc.lock('b', catOf([catOf()]), ps.TRICK_IDS[0]);
+            t.svc.loaded('a');
+            t.svc.loaded('b');
+            expect(t.starts).toHaveLength(1);
+            const plan = t.starts[0];
+            expect(plan.pvp).toBeUndefined();
+            expect(plan.seed).toBe(holder.seed);
+            const picks = roomPicks(plan);
+            for (const x of holder.personas!) {
+                expect(picks[x.slot]).toBe(x.hero);
+                expect(sideOf(x.hero!)).toBe(x.slot < 3 ? 'cat' : 'dog');
+            }
+            expect(t.svc.view(p, 'a').mm!.fill!.every(x => x.locked)).toBe(true);
+        }
+    });
+
+    it('ranked vs AI (a co-op room) never gets personas', () => {
+        const t = setup();
+        const p = t.svc.createMatched([{ id: 'a', identity: ident('a') }], {
+            match: 'm-ai',
+            side: 'cat',
+            difficulty: 'hard',
+            ranked: true,
+        });
+        expect(p.mm!.coop).toBeUndefined();
+        expect(t.svc.view(p, 'a').mm!.fill).toBeUndefined();
+    });
+
     it('ranked never gets personas: its bot seats stay labelled', () => {
         const t = setup();
         const p = t.svc.createMatched([{ id: 'a', identity: ident('a') }], {

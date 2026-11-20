@@ -60,6 +60,7 @@ import {
     MAX_MEMBERS,
     PartyService,
     PARTY_TIMING,
+    personaHolder,
     type Member,
     type MemberIdentity,
     type Party,
@@ -2471,13 +2472,10 @@ export class PartyRelay {
         const seats = new Map<string, number>(party.members.map(m => [m.id, m.slot!]));
         const names: (string | null)[] = new Array(2 * n).fill(null);
         for (const m of party.members) names[m.slot!] = m.name;
-        // casual bot seats as players (never ranked): only seats no member holds keep a persona
-        const personas: StoredPersona[] =
-            plan.pvp && !party.mm?.ranked
-                ? (party.mm?.casual?.personas ?? [])
-                      .filter(x => x.slot < 2 * n && names[x.slot] === null)
-                      .map(x => ({ slot: x.slot, name: x.name, ...(x.cc ? { cc: x.cc } : {}), av: { ...x.av } }))
-                : [];
+        // matched bot seats as players (casual and co-op, never ranked): only seats no member holds keep a persona
+        const personas: StoredPersona[] = (personaHolder(party)?.personas ?? [])
+            .filter(x => x.slot < 2 * n && names[x.slot] === null)
+            .map(x => ({ slot: x.slot, name: x.name, ...(x.cc ? { cc: x.cc } : {}), av: { ...x.av } }));
         const startMs = now + PARTY_TIMING.startInMs;
         const room = new Room(
             {

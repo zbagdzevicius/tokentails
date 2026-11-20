@@ -217,7 +217,16 @@ export function simulateCasual(perMin: number, hours = 2, seed = 11): CasualSimR
             if (t0.difficulty !== t1.difficulty) botSplit++;
             const eff = (t: typeof t0) => (t.rating * t.humans + t.bots * BOT_RATING[t.difficulty]) / 3;
             const pAll = 1 / (1 + Math.pow(10, (eff(t1) - eff(t0)) / 400));
-            if (pAll >= MM_CASUAL.fairAfter[0] - 1e-9 && pAll <= MM_CASUAL.fairAfter[1] + 1e-9) boundedAll++;
+            // a lone player no bot level can meet (under ~990, over ~2010) plays its team of bots anyway (casual.ts
+            // `outOfBotReach`, founder 2026-11-20): co-op would seat it against the same bots, so it is not a miss
+            const lone = m.humans === 1 && (t0.humans === 0 || t1.humans === 0);
+            const human = t0.humans === 1 ? t0 : t1;
+            const reach = Object.values(BOT_RATING).some(b => {
+                const q = 1 / (1 + Math.pow(10, (b - (human.rating + 2 * b) / 3) / 400));
+                return q >= MM_CASUAL.fairBand[0] && q <= MM_CASUAL.fairBand[1];
+            });
+            if (lone && !reach) boundedAll++;
+            else if (pAll >= MM_CASUAL.fairAfter[0] - 1e-9 && pAll <= MM_CASUAL.fairAfter[1] + 1e-9) boundedAll++;
             if (m.humans === 6) {
                 humanOnly++;
                 const p = 1 / (1 + Math.pow(10, (m.teams![1].rating - m.teams![0].rating) / 400));

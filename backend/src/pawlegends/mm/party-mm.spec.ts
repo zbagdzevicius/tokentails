@@ -53,7 +53,10 @@ describe('Quick Play parties', () => {
         ps.lock('m2', 'clem', 'pounce');
         expect(p.members[1].locked).toBe(false);
         expect(ps.view(p, 'm2').code).toBe('');
-        expect(ps.view(p, 'm2').mm).toEqual({ side: 'dog', strangers: true });
+        // the bot seats play as players (bot-persona.ts): slots 2..5
+        const mm = ps.view(p, 'm2').mm!;
+        expect(mm).toMatchObject({ side: 'dog', strangers: true });
+        expect(mm.fill!.map(x => x.slot)).toEqual([2, 3, 4, 5]);
     });
 
     it('auto-lock on the pick timeout picks the fixed side (a newbie never gets the cat newbie hero on dogs)', () => {

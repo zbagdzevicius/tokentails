@@ -668,7 +668,10 @@ export class MmBridge implements MmHooks {
             side,
             region: region === MM_HOME_REGION ? region : MM_HOME_REGION,
             sim: `${sock.sim.version}:${sock.sim.hash}`,
-            enqueuedMs: now,
+            // a low-priority wait (leaver ladder, dodges) is a wait before the search, not part of it: the trickle, the
+            // co-op switch and the card's clock start when it ends (founder, 2026-11-20: the card counted on and filled
+            // bot pips while the entry could not be seated, then the 40 s switch sent it to co-op)
+            enqueuedMs: wait > 0 ? now + wait : now,
             notBeforeMs: wait > 0 ? now + wait : 0,
             awaySinceMs: socks.some(s => s.conn !== 'on') ? now : null,
             ...(bots ? { bots: true } : {}),
@@ -826,7 +829,10 @@ export class MmBridge implements MmHooks {
             const p = this.api.parties.byId(e.partyId);
             if (p?.queued) this.api.parties.setQueued(p, null);
         }
-        this.api.log('mm_cancel', { by: reason, waited_s: Math.round((this.api.now() - e.enqueuedMs) / 1000) });
+        this.api.log('mm_cancel', {
+            by: reason,
+            waited_s: Math.max(0, Math.round((this.api.now() - e.enqueuedMs) / 1000)),
+        });
     }
 
     private dropEntry(e: MmEntry): void {

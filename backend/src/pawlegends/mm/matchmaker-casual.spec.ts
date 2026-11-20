@@ -188,10 +188,11 @@ describe('casual PvP matchmaker', () => {
     });
 
     it('moves a search no fair plan takes to co-op at 40 s (wait credited, a short Keep-waiting grace); Keep waiting puts it back', () => {
-        // far above the Hard bots (2400 vs 1800): no fair team of bots, so the co-op switch is the safety net
+        // a duo far above the Hard bots (2400 vs 1800): no fair team of bots, so the co-op switch is the safety net (a
+        // lone player that far out plays its team of bots at 15 s instead: mm-lowprio.spec.ts)
         const strong = { rating: { r: 2400, rd: 50 } };
         const { clock, mm, advance } = make();
-        const e = entry(clock, [member('solo', strong)]);
+        const e = entry(clock, [member('solo', strong), member('mate', strong)]);
         mm.join(e);
         const ticks = advance(MM_CASUAL.switchMs);
         expect(matchesOf(ticks)).toHaveLength(0);
@@ -204,7 +205,7 @@ describe('casual PvP matchmaker', () => {
         expect(advance(60_000).flatMap(t => [...t.switched, ...t.matches])).toHaveLength(0);
         // without Keep waiting the co-op fill seats it once the grace is over (a fresh pool)
         const two = make();
-        const f = entry(two.clock, [member('solo2', strong)]);
+        const f = entry(two.clock, [member('solo2', strong), member('mate2', strong)]);
         two.mm.join(f);
         const later = two.advance(MM_CASUAL.switchMs + MM_CASUAL.switchGraceMs + 1000);
         const coop = matchesOf(later);

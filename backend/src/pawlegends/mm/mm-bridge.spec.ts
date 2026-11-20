@@ -209,11 +209,19 @@ describe('MmBridge', () => {
         const st = t.last(s.member, 'mm.status')!;
         expect(st.warn).toBe('leaver');
         expect(st.lowPriorityMs).toBe(60_000);
+        // the search starts when the wait ends (founder, 2026-11-20): no search time yet, the estimate covers both
+        expect(st.waitedMs).toBe(0);
+        expect(st.estimateMs).toBe(70_000); // 60 s + the 8 s quiet fill, in 5 s steps
         // the wait is a wait, not a refusal: nothing forms before it ends, even after the quiet fill time
         t.clock.now += 20_000;
         t.bridge.onTick();
         expect(t.last(s.member, 'mm.found')).toBeUndefined();
         t.clock.now += 41_000;
+        t.bridge.onTick();
+        expect(t.last(s.member, 'mm.found')).toBeUndefined();
+        expect(t.last(s.member, 'mm.status')).toMatchObject({ waitedMs: 1000 });
+        // the quiet co-op fill 8 s into the search
+        t.clock.now += 7000;
         t.bridge.onTick();
         expect(t.last(s.member, 'mm.found')).toBeDefined();
     });

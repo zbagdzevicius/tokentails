@@ -19,7 +19,9 @@ describe('Quick Play relay (M1a co-op)', () => {
             );
             for (const v of views) {
                 expect(v.code).toBe('');
-                expect(v.mm).toEqual({ side: found[0].side, strangers: true });
+                expect(v.mm).toMatchObject({ side: found[0].side, strangers: true });
+                // the bot team's seats play as named players (founder, 2026-11-20)
+                expect(v.mm.fill.map((x: { slot: number }) => x.slot)).toEqual([3, 4, 5]);
                 expect(v.locked).toBe(true);
             }
             const matches = await lockAndLoad(cs);

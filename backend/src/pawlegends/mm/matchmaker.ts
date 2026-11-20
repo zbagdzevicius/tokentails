@@ -79,8 +79,13 @@ export interface MmEntry {
     region: string;
     /** `${simVersion}:${simHash}`. */
     sim: string;
+    /**
+     * When the search starts: the join, or the end of a low-priority wait (founder, 2026-11-20: a search with a leaver
+     * or dodge wait showed its clock and bot pips running while nothing could seat it, then moved to co-op at 40 s).
+     * The bot trickle, the co-op switch, the windows and the queue order all count from here.
+     */
     enqueuedMs: number;
-    /** Low-priority wait (the leaver ladder); 0 when clean. */
+    /** Low-priority wait (the leaver ladder, a dodge); 0 when clean. Never later than `enqueuedMs` at the join. */
     notBeforeMs: number;
     /** Tab hidden since (skipped; cancelled after awayCancelMs), else null. */
     awaySinceMs: number | null;
@@ -395,10 +400,11 @@ export class Matchmaker {
         const rankedMs = e.bots
             ? Math.min(rankedPlayersMs, Math.max(0, this.rankedAiAtMs(now) - waitedMs))
             : rankedPlayersMs;
+        // a low-priority wait comes first: the search (and its estimate) starts when it ends
         const raw =
             e.queue === 'ranked'
-                ? Math.max(lowPriorityMs, Math.min(rankedMs, 10 * 60_000))
-                : Math.max(lowPriorityMs, Math.min(toFill, toArrival));
+                ? lowPriorityMs + Math.min(rankedMs, 10 * 60_000)
+                : lowPriorityMs + Math.min(toFill, toArrival);
         const estimateMs = Math.max(3000, Math.ceil(raw / 5000) * 5000);
         if (e.queue === 'ranked') {
             let searching = 0;

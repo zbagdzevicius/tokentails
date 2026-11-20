@@ -277,7 +277,11 @@ export function bestCasual(
             // every shape stays fair: predicted 40..60 % while the anchor waited less than `fairUntilMs`, then
             // within `fairAfter` (filled 1v1 and 3v1 included, so the widened window never seats a lopsided match)
             const fair = waited < c.fairUntilMs ? c.fairBand : c.fairAfter;
-            if (p < fair[0] || p > fair[1]) continue;
+            // a lone player no bot level can meet plays its team of bots anyway (founder, 2026-11-20: a search kept
+            // running alone past 15 s): a rating under ~990 or over ~2010 never fits 40..60 % against the bots' band
+            // (Easy..Hard), so it waited for the 40 s move to co-op and then played the same bots there. Every other
+            // shape stays inside the band (a duo or trio between two bot levels still waits for players).
+            if ((p < fair[0] || p > fair[1]) && !(hb === 0 && ha === 1 && outOfBotReach(teamA, n, fair))) continue;
             // species: A takes one the sides allow, B the other
             for (const sa of speciesFor(teamA, relaxed)) {
                 const sb: Species = sa === 'cat' ? 'dog' : 'cat';
@@ -303,6 +307,14 @@ export function bestCasual(
         }
     }
     return best;
+}
+
+/** No bot level (Easy, Normal, Hard on both teams) puts `team` against a team of bots inside `fair`. */
+export function outOfBotReach(team: readonly MmEntry[], n: number, fair: readonly [number, number]): boolean {
+    return !Object.values(BOT_RATING).some(b => {
+        const q = winChance(effectiveRating(team, b, n), b);
+        return q >= fair[0] && q <= fair[1];
+    });
 }
 
 /** The species that plays on the left (team 0) next: the one that played there less in the recent matches; ties cats. */

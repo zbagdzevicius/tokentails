@@ -65,6 +65,18 @@ export interface PartyCasual {
     seed?: number;
 }
 
+/** Where a matched party keeps its personas and the match seed they were drawn for. */
+export interface PersonaHolder {
+    personas?: BotPersona[];
+    seed?: number;
+}
+
+/** The persona holder of a matched party: casual's, else co-op's; ranked (PvP or vs AI) never has one. */
+export function personaHolder(p: { mm?: PartyMm }): PersonaHolder | undefined {
+    if (!p.mm || p.mm.ranked) return undefined;
+    return p.mm.casual ?? p.mm.coop;
+}
+
 export interface MemberIdentity {
     accountId: string | null;
     guestKeyHash: string | null;
@@ -151,6 +163,11 @@ export interface PartyMm {
     /** Co-op: the side of everyone. Casual: team 0's species (each member's own is `casual.species[team]`). */
     side: 'cat' | 'dog';
     casual?: PartyCasual;
+    /**
+     * Matched co-op (never ranked): its bot seats play as players too (founder, 2026-11-20: the co-op pick still read
+     * "Bot"), the same personas and seed rule as casual's (`PartyCasual.personas`). Made when the pick opens.
+     */
+    coop?: PersonaHolder;
     /** A ranked match (SOCIAL-RANKED.md §7.11: 3v3 PvP, or vs AI as a co-op room): no bot chatter, the ranked delay. */
     ranked?: true;
     /** Ranked draft (§7.13): the pick opens with the ban phase. */
@@ -618,7 +635,18 @@ export class PartyService {
             // a rematch never keeps a hero the member may no longer pick (a rotation flip, a refund)
             if (m.hero && this.rules.allowed && !this.rules.allowed(p, m, m.hero)) m.hero = undefined;
         });
-        if (casual && !p.mm?.ranked && !rematch) this.makePersonas(p, casual);
+        // matched bot seats play as players (never ranked): casual's both teams, co-op's every seat no player holds
+        if (p.mm && !p.mm.ranked && !rematch) {
+            if (casual) this.makePersonas(p, casual, casualTeamSize(casual), Object.values(casual.slots));
+            else
+                this.makePersonas(
+                    p,
+                    (p.mm.coop ??= {}),
+                    3,
+                    // an open seat is a pilot's (a friend may claim it): never a persona
+                    p.openSeats ? [0, 1, 2] : p.members.map(m => m.slot!)
+                );
+        }
         const lead = ordered[0];
         if (p.mm) p.side = p.mm.side;
         else if (lead.hero) p.side = this.rules.sideOf(lead.hero);
@@ -738,25 +766,24 @@ export class PartyService {
         return p.mm?.casual && m.slot !== undefined ? teamOf(m.slot, casualTeamSize(p.mm.casual)) : 0;
     }
 
-    /** Casual bot seats as players (bot-persona.ts): one persona per seat no matched human holds. */
-    private makePersonas(p: Party, casual: PartyCasual): void {
-        const n = casualTeamSize(casual);
-        const human = new Set(Object.values(casual.slots));
+    /** Bot seats as players (bot-persona.ts): one persona per seat of the `2n` no matched human holds. */
+    private makePersonas(p: Party, holder: PersonaHolder, n: number, humanSlots: readonly number[]): void {
+        const human = new Set(humanSlots);
         const slots = Array.from({ length: 2 * n }, (_, s) => s).filter(s => !human.has(s));
         if (!slots.length) {
-            delete casual.personas;
+            delete holder.personas;
             return;
         }
         const [lo, hi] = PARTY_TIMING.personaLockMs;
         const now = this.now();
-        casual.personas = makePersonas({
+        holder.personas = makePersonas({
             slots,
             playerFlags: p.members.map(m => this.events.flagOf?.(m.id) ?? null),
             taken: p.members.map(m => m.name),
             heroes: this.heroesOf(p),
         }).map(x => ({ ...x, lockAtMs: now + randomInt(lo, hi + 1) }));
         // the match's seed is fixed now, so a persona shows the champion the sim gives its seat
-        casual.seed = randomInt(0, 2 ** 32 - 1) >>> 0;
+        holder.seed = randomInt(0, 2 ** 32 - 1) >>> 0;
     }
 
     /**
@@ -766,10 +793,13 @@ export class PartyService {
      * Team 0's bots depend on slot 0's champion: while a player there has not locked, they wait.
      */
     private lockPersonas(p: Party, all: boolean): boolean {
-        const c = p.mm?.casual;
+        const c = personaHolder(p);
         if (!c?.personas || c.seed === undefined || p.phase !== 'pick' || p.draft?.stage === 'ban') return false;
         const now = this.now();
-        const n = casualTeamSize(c);
+        const casual = p.mm?.casual;
+        const n = casual ? casualTeamSize(casual) : 3;
+        // co-op: one side for the humans' team (the other is the sim's other species)
+        const species0 = casual ? casual.species[0] : p.mm!.side;
         const due = c.personas.filter(x => !x.hero && (all || (x.lockAtMs ?? 0) <= now));
         if (!due.length) return false;
         const lead0 = c.personas.find(x => x.slot === 0);
@@ -777,7 +807,7 @@ export class PartyService {
             const hero = personaHero({
                 heroes: this.heroesOf(p),
                 sideOf: h => this.rules.sideOf(h),
-                species: c.species[0],
+                species: species0,
                 taken: [],
                 locked: [],
             });
@@ -788,7 +818,7 @@ export class PartyService {
         }
         const slot0 = p.members.find(m => m.slot === 0);
         const leadHero = lead0?.hero ?? (slot0?.locked ? slot0.hero : undefined);
-        const anyOfSide0 = this.heroesOf(p).find(h => this.rules.sideOf(h) === c.species[0]);
+        const anyOfSide0 = this.heroesOf(p).find(h => this.rules.sideOf(h) === species0);
         const picks =
             leadHero || anyOfSide0
                 ? this.rules.botPicks?.(p, c.seed, {
@@ -915,7 +945,8 @@ export class PartyService {
     }
 
     private launch(p: Party): void {
-        const seed = randomInt(0, 2 ** 32 - 1) >>> 0;
+        // personas showed the champions the sim gives their seats for the seed fixed when the pick opened
+        const seed = personaHolder(p)?.seed ?? randomInt(0, 2 ** 32 - 1) >>> 0;
         const occupied = p.members.map(m => m.slot!).sort((a, b) => a - b);
         const casual = p.mm?.casual;
         if (casual) return this.launchCasual(p, casual, seed, occupied);
@@ -1254,7 +1285,15 @@ export class PartyService {
                       }
                     : {}),
             };
-        else if (p.mm) view.mm = { side: p.mm.side, strangers: p.mm.strangers.size > 0 };
+        else if (p.mm)
+            view.mm = {
+                side: p.mm.side,
+                strangers: p.mm.strangers.size > 0,
+                // matched co-op: its bot seats as players too (every champion shown; no hidden team)
+                ...(!p.mm.ranked && p.mm.coop?.personas?.length
+                    ? { fill: p.mm.coop.personas.map(x => personaView(x)) }
+                    : {}),
+            };
         if (p.queued) view.queue = { sinceMs: Math.max(0, this.now() - p.queued.sinceMs), side: p.queued.side };
         // PROTO 8 ranked draft (§7.13): each team's ban (the other team's stays hidden until the ban phase ends) and,
         // in the ban phase, the recipient's own team's votes
