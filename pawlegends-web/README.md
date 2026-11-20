@@ -9,7 +9,7 @@ terms and privacy pages). The move plan and its two release phases are in
 |---|---|---|
 | `/` | `pages/index.tsx` | the landing (A/B arm A). `noindex` until the trademark search passes |
 | `/legends` | `pages/legends.tsx` | the scroll-lane-map landing (A/B arm B) |
-| `/play` | `pages/play.tsx` | the game host: the built game in a same-origin iframe (`/pawlegends-game/index.html?embed=1`) |
+| `/play` | `pages/play.tsx` (body in `components/pawlegends/PawlegendsPlayPage.tsx`) | the game host: the built game in a same-origin iframe (`/pawlegends-game/index.html?embed=1`) |
 | `/terms`, `/privacy` | | store terms; privacy notice (the App Store and Google Play privacy URL) |
 | `/account` | | sign in, sign out, delete the account (Google Play's account deletion URL) |
 | `/support` | | the App Store support URL |

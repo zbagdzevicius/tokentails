@@ -5,10 +5,19 @@
  * `pawlegends/`). Pure functions, so tests pass values in.
  */
 
-/** The same-origin build. Next serves no directory index, so the file is named. */
-export const PAWLEGENDS_GAME_URL = "/pawlegends-game/index.html";
+/** Where the live build is served (pawlegends `build:client`, Vite `base`). */
+export const PAWLEGENDS_GAME_BASE = "/pawlegends-game/";
+/**
+ * The iframe's src for a build served at `base` (a same-origin path with a leading and a trailing slash). Next serves
+ * no directory index, so the file is named. `/play` uses the live build; a hidden preview page passes its own base.
+ */
+export function frameSrcOf(base: string = PAWLEGENDS_GAME_BASE): string {
+  return `${base}index.html?embed=1`;
+}
+/** The same-origin build. */
+export const PAWLEGENDS_GAME_URL = `${PAWLEGENDS_GAME_BASE}index.html`;
 /** The iframe's src (POC.md §11.4). */
-export const PAWLEGENDS_FRAME_SRC = `${PAWLEGENDS_GAME_URL}?embed=1`;
+export const PAWLEGENDS_FRAME_SRC = frameSrcOf();
 /**
  * The shape of a dare code (`pawlegends/src/share/dare.ts` `encodeDare`: seed.hero.trick.difficulty.seconds, base 36
  * where it says so). The game decodes and validates it fully; the host only refuses anything that is not that shape.
@@ -48,14 +57,15 @@ export const PAWLEGENDS_PARTY_LINK =
  * and nothing else. A party invite (`/?party=K7QX2M`, MULTIPLAYER.md §5.3) is forwarded the same way,
  * validated and upper-cased. Without either it is `PAWLEGENDS_FRAME_SRC`.
  */
-export function pawlegendsFrameSrc(search: string): string {
+export function pawlegendsFrameSrc(search: string, base: string = PAWLEGENDS_GAME_BASE): string {
+  const plain = frameSrcOf(base);
   let dare: string | null = null;
   try {
     dare = new URLSearchParams(search).get("dare");
   } catch {
-    return PAWLEGENDS_FRAME_SRC;
+    return plain;
   }
-  let src = dare && DARE_CODE.test(dare) ? `${PAWLEGENDS_FRAME_SRC}&dare=${dare}` : PAWLEGENDS_FRAME_SRC;
+  let src = dare && DARE_CODE.test(dare) ? `${plain}&dare=${dare}` : plain;
   const party = partyCodeOf(search);
   if (party) src += `&party=${party}`;
   // sim v22 (WR-BS-PLAN.md §5): `?mode=blitz|skirmish|classic` opens the PLAY screen on that tile; any other short word
@@ -70,8 +80,9 @@ export function pawlegendsFrameSrc(search: string): string {
  * makes the game's index.html a new URL (no cached copy of the old one anywhere); a one-time dare or party is not
  * forwarded again.
  */
-export function pawlegendsFrameSrcFor(version: string | null): string {
-  return version && /^[0-9a-z]{4,40}$/.test(version) ? `${PAWLEGENDS_FRAME_SRC}&v=${version}` : `${PAWLEGENDS_FRAME_SRC}&v=${Date.now().toString(36)}`;
+export function pawlegendsFrameSrcFor(version: string | null, base: string = PAWLEGENDS_GAME_BASE): string {
+  const plain = frameSrcOf(base);
+  return version && /^[0-9a-z]{4,40}$/.test(version) ? `${plain}&v=${version}` : `${plain}&v=${Date.now().toString(36)}`;
 }
 
 /** A well-formed `mode` of the page URL (lowercase letters, at most 16), or null. */

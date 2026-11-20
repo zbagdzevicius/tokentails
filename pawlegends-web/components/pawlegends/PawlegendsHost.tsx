@@ -41,7 +41,8 @@ import { championArtOf } from "./championsBridge";
 import { claimQuestion } from "./claim";
 import {
   PAWLEGENDS_CONTACT,
-  PAWLEGENDS_FRAME_SRC,
+  frameSrcOf,
+  PAWLEGENDS_GAME_BASE,
   PAWLEGENDS_PRIVACY_URL,
   PAWLEGENDS_PARTY_LINK,
   PAWLEGENDS_TERMS_PATH,
@@ -108,11 +109,16 @@ interface PawlegendsHostProps {
   saveMatch?: typeof USER_API.saveMatchDetailed;
   /** The delay between entitlement polls (tests pass 0). */
   pollMs?: number;
+  /**
+   * Where the game build is served (`flags.ts` `PAWLEGENDS_GAME_BASE` by default). Only the hidden rail previews
+   * (pages/preview/) pass another one.
+   */
+  gameBase?: string;
 }
 
 /**
  * The `/play` host: the game full-bleed in a same-origin iframe
- * (`/pawlegends-game/index.html?embed=1`). Paw Legends stands on its own (docs/plans/moba/NO-TOKENTAILS.md): no cards,
+ * (`/pawlegends-game/index.html?embed=1`, or `<gameBase>index.html?embed=1`). Paw Legends stands on its own (docs/plans/moba/NO-TOKENTAILS.md): no cards,
  * Meet offers or links to other games inside it.
  *
  * - **Account.** An existing Firebase session is reused (`authMode="optional"`); the game asks for sign-in with
@@ -134,6 +140,7 @@ export const PawlegendsHost = ({
   isApp: isAppProp,
   saveMatch,
   pollMs = ENTITLEMENT_POLL_MS,
+  gameBase = PAWLEGENDS_GAME_BASE,
 }: PawlegendsHostProps) => {
   // pawlegends-web is never a Capacitor build: the native app has its own host (pawlegends-app/src/host).
   const isApp = isAppProp ?? false;
@@ -146,7 +153,7 @@ export const PawlegendsHost = ({
   const [bridgeState, setBridgeState] = useState<"connecting" | "slow" | "timeout" | "ready">("connecting");
   const [frameKey, setFrameKey] = useState(0);
   // The server render has no URL, so the first render uses the plain src and a dare is forwarded after mount.
-  const [frameSrc, setFrameSrc] = useState(PAWLEGENDS_FRAME_SRC);
+  const [frameSrc, setFrameSrc] = useState(() => frameSrcOf(gameBase));
   /** Reload presses on this page (the `pawlegends_bridge_timeout` event carries it). */
   const reloads = useRef(0);
   const [suspended, setSuspended] = useState(false);
@@ -717,11 +724,11 @@ export const PawlegendsHost = ({
     remountLatestRef.current = (version) => {
       setUpdateReady(false);
       setBridgeState("connecting");
-      setFrameSrc(pawlegendsFrameSrcFor(version));
+      setFrameSrc(pawlegendsFrameSrcFor(version, gameBase));
       setFrameKey((k) => k + 1);
       bridgeRef.current?.reconnect();
     };
-  }, []);
+  }, [gameBase]);
   const reload = () => {
     reloads.current += 1;
     setBridgeState("connecting");
@@ -731,16 +738,17 @@ export const PawlegendsHost = ({
   // A dare link (`/pawlegends?dare=…`, launch finding PUB-03): the game reads the dare from its own URL, so the
   // frame is started again with the dare in its src (a fresh iframe, as the reload button does).
   useEffect(() => {
-    const src = pawlegendsFrameSrc(window.location.search);
+    const src = pawlegendsFrameSrc(window.location.search, gameBase);
     // a party invite: the frame got the code; the address bar drops it, so a reload does not rejoin an old party
     const stripped = withoutParty(window.location.href);
     // (the Next router's own history state keeps working: its `as` and `url` follow the new address)
     if (stripped) window.history.replaceState({ ...(window.history.state ?? {}), as: stripped, url: stripped }, "", stripped);
-    if (src === PAWLEGENDS_FRAME_SRC) return;
+    if (src === frameSrcOf(gameBase)) return;
     setFrameSrc(src);
     setFrameKey((k) => k + 1);
     bridgeRef.current?.reconnect();
-  }, []);
+    // gameBase is fixed per page, so this still runs once
+  }, [gameBase]);
 
   // Invite links (invite.ts): `?ref=` is kept on this device and dropped from the address bar; once the visitor is
   // signed in it is redeemed once (invites are free: the app may redeem too, from the Social sheet's code field).

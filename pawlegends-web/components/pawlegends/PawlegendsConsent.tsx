@@ -4,7 +4,7 @@ import { afterLandingReady } from "@/components/GoogleTagManager";
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { isInMatch, pokeMatch, subscribeMatch } from "./matchPresence";
-import { PAWLEGENDS_PLAY_PATH } from "./routes";
+import { isGamePagePath } from "./routes";
 
 /** Dispatch on `window` to show the bar again (the privacy page's "Change my choice"). */
 export const CONSENT_OPEN_EVENT = "pawlegends:consent-open";
@@ -30,7 +30,7 @@ export const CONSENT_HEIGHT_VAR = "--pl-consent-h";
 
 const readDock = () => {
   try {
-    return window.location.pathname === PAWLEGENDS_PLAY_PATH;
+    return isGamePagePath(window.location.pathname);
   } catch {
     return false;
   }
