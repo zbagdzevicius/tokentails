@@ -757,3 +757,29 @@ give each VM `RELAY_SHARD` and route `/pawlegends/ws/<shard>` in `edge_lb_region
 Longest-prefix routing between `/pawlegends/ws/b` and `/pawlegends/ws`; `preserve_path_prefix: true`; copied
 `EV[...]` secrets decrypting in another component; the pod hostname shape for `deployId`; whether DO restarts a crashed
 one-instance component within a minute.
+
+### 15.7 Adversarial review (2026-11-20)
+
+Fixed in the review commits:
+
+- **Queue redirect loop.** A player alone in a party made on one shard was sent to the lease holder by `mm.join`, and
+  sent straight back by its resume token (the stored party names the first shard as owner): an endless 0 ms loop of
+  reconnects. Now only a player with no party is sent to the lease holder; any party searches where it is.
+- **Signed-in players turned guest.** The fleet nonce makes a ticket single use on every relay. A quick reconnect
+  (under 40 s) reuses the held ticket; on another relay than the one that spent it, it was refused and the player went
+  on as a guest. The game now treats `bad_ticket` followed by `welcome` as a cue to sign in again with a fresh ticket
+  (at most once a minute; not during a match, where the resume token keeps the account).
+- **Quick Play record not retried.** `onRoomEnded` dropped the match from memory before its write, so the relay's
+  retry wrote nothing. The idempotent `$set` is now retried inside `mm-bridge`.
+
+Still open (by design or for Phase B):
+
+- **Today's spec splits the Quick Play queue.** With A1, both `all` instances serve, and each keeps its own in-memory
+  queue (the `mm` lease exists only for shards, and an instance cannot be addressed). Human PvP players on different
+  instances never meet, and bots fill more. Reconnects and code joins to the other instance still cost a bounce
+  (`room_elsewhere`, `party_elsewhere`). So run `STEP=split` soon after the Phase A deploy (same day): one relay
+  process means one queue again.
+- A lobby party whose owner cannot write its heartbeat for 15 s while it still runs is taken over by another relay
+  (§14). Both copies then run until the old owner's next save. This was already true before §15.
+- After more than 3 redirects in 30 s the game dials the front door, which redirects it again. A join in that window
+  uses up its 12 retries and shows `party_unreachable`.
