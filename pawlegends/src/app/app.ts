@@ -25,7 +25,7 @@ import { GRADE_TREAT_XP, gradeMatch } from '../meta/grade';
 import { HERO_IDS, HEROES } from '../data/heroes';
 import { myName, refreshMyName, setMyName } from '../meta/myName';
 import { myAvatar, observeMyAvatar, onMyAvatar, refreshMyAvatar, setMyAvatar } from '../meta/myAvatar';
-import { accountState, heroForSide, loadProfile, noteChampionMatch, noteCoatMatch, noteHeroMatch, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
+import { accountState, heroForSide, loadProfile, noteChampionMatch, noteCoatMatch, noteHeroMatch, recordMatch, saveProfile, startSession, tipsDue, type Profile } from '../meta/profile';
 import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
 import { markShown, pickOffer, type Offer, type OfferScreen } from '../money/offer';
@@ -77,7 +77,8 @@ type ScreensMod = typeof import('../ui/screens');
 import { disposeLobby, heroIdentity, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
 import { botsChoice, disposeHome, homeScreen, openHomeQuests, patchHome, type HomeProfile, type HomeScreenOpts } from '../ui/home/homeScreen';
 import { currentSeason, seasonEndText } from '../meta/pass';
-import { levelInfo } from '../meta/accountLevel';
+import { levelInfo, shownMatches } from '../meta/accountLevel';
+import { loadCloud } from '../meta/progressCloud';
 import { initLiveops, liveopsState, setDropAction } from '../meta/liveops';
 import { EXTRA_ITEMS, loadSeen, markSeen, queueFor, saveSeen, showcaseFeed, isSeen, type ShowcaseEntry, type ShowcaseHeroKit, type ShowcaseItem, type ShowcaseTarget } from '../meta/showcase';
 import { countdownText, legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef, type ModeId } from '../ui/modeSelect/modes';
@@ -964,13 +965,27 @@ export class App {
    */
   private menuModes(): ModeId[] {
     const online = !!this.partyApi && pvpKnown() === true;
-    return [MAIN_MODE, ...menuExtras(loadProfile()).filter((id) => id !== 'ranked' || online)];
+    return [MAIN_MODE, ...menuExtras(this.levelProfile()).filter((id) => id !== 'ranked' || online)];
+  }
+
+  /**
+   * The matches the account level counts (LEADERBOARDS.md, one source): a signed-in player's server count (the same as
+   * the Global board, other players' cards and the Ranked gate) plus this device's matches since that answer; a guest's
+   * own device count. Home's chip, Profile and the mode unlocks all read it.
+   */
+  private levelMatches(p: Profile = loadProfile()): number {
+    return shownMatches(p.matches, accountState().signedIn ? loadCloud().account : null);
+  }
+
+  /** The profile with the account level's matches (the mode unlocks read `matches`). */
+  private levelProfile(p: Profile = loadProfile()): Profile {
+    return { ...p, matches: this.levelMatches(p) };
   }
 
   /** Is this mode open to the player now (the results' "Quick Blitz?" and the promos)? */
   private modeOpen(id: ModeId): boolean {
     const m = modeById(id, modeList());
-    return !!m && isUnlocked(m, loadProfile(), Date.now());
+    return !!m && isUnlocked(m, this.levelProfile(), Date.now());
   }
 
   /** The mode a finished match played (for the NEW state). */
@@ -986,7 +1001,7 @@ export class App {
   /** After recordMatch: the played mode loses NEW; Practice or Ranked this match unlocked is announced (results, then Home). */
   private noteModeResult(played: ModeId, before: { matches: number; wins: number }): { name: string; line: string; art: string } | null {
     const local = notePlayed(loadModeLocal(), played);
-    const p = loadProfile();
+    const p = this.levelProfile();
     const fresh = newlyUnlocked(before, p);
     if (fresh.length) {
       local.fresh = [...new Set([...local.fresh, ...fresh])];
@@ -1144,9 +1159,10 @@ export class App {
       tier: season ? season.tier : null,
       pct: season && def ? (Math.max(0, season.xp) % def.xpPerTier) / def.xpPerTier : 0,
       xp: season ? season.xp : null,
-      matches: p.matches,
-      // MODE-UNLOCKS.md: the account level that opens the modes; the Yarn balance where a server answered
-      level: levelInfo(p.matches),
+      matches: this.levelMatches(p),
+      // MODE-UNLOCKS.md: the account level that opens the modes (one source: the server's for a signed-in player,
+      // LEADERBOARDS.md); the Yarn balance where a server answered
+      level: levelInfo(this.levelMatches(p)),
       // (Nov 17 verification: a web guest has no account, so the chip never showed; it shows 0 and says to sign in)
       // (a signed-in player waits for the server's balance instead of flashing 0)
       yarn: this.champs().server ? this.champs().yarn.balance : (s.embedded || this.isApp()) && !accountState().signedIn ? 0 : null,
@@ -1757,8 +1773,9 @@ export class App {
             title: p.wornTitle ?? (s.items.has('title.founder') ? 'title.founder' : null),
             frame: bestFrame(owned, p.wornFrame) ?? null,
             cc: flagHidden() ? null : myCountry(),
-            matches: p.matches,
-            level: levelInfo(p.matches),
+            // the account level (one source with the boards, LEADERBOARDS.md)
+            matches: this.levelMatches(p),
+            level: levelInfo(this.levelMatches(p)),
             pass: season && def ? { tier: season.tier, tiers: def.tiers, pct: (Math.max(0, season.xp) % def.xpPerTier) / def.xpPerTier, xp: season.xp, premium: season.premium !== 'none', name: def.name } : null,
             yarn: this.champs().server ? this.champs().yarn.balance : null,
             mastery: loadMastery(),
@@ -2730,7 +2747,7 @@ export class App {
     const draw = e.result.draw === true;
     const playedMode: MatchMode = setup?.map === 'hearthwood' ? 'classic' : e.replay.mutator === 'blitz' ? 'blitz' : 'skirmish';
     this.blitzRun = e.replay.mutator === 'blitz' ? this.blitzRun + 1 : 0;
-    const countsBefore = (({ matches, wins }) => ({ matches, wins }))(loadProfile());
+    const countsBefore = (({ matches, wins }) => ({ matches, wins }))(this.levelProfile());
     const rec = sandbox ? { firstWin: false, best: false, second: false } : recordMatch(won, seconds, e.replay.difficulty, !blitz);
     // mode unlocking (MODE-UNLOCKS.md §3.3): this match finished a mode's NEW state, and may have crossed a threshold;
     // the first crossed mode gets the results banner, every crossed one is recorded (no device announces it twice)

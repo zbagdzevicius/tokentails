@@ -21,6 +21,7 @@ import { loadProfile, saveProfile, UNLOCKS_MAX, FIRST_WIN_UNLOCK, parseProfile, 
 import { dayKey, loadQuests, parseQuests, saveQuests, type QuestState } from './quests';
 import { addTreatXp, loadTreats, saveTreats, TREAT_STEP, type TreatReward, type TreatState } from './treats';
 import { parseWelcome, type WelcomeState } from './welcome';
+import type { AccountAnswer } from './accountLevel';
 import { TCAST_KEYS } from '../input/presets';
 import { hudStoreTouched, loadHudStore, parseStore, saveHudStore, type HudStore } from '../input/touch/hudLayout';
 
@@ -74,9 +75,23 @@ export interface CloudLocal {
   welcome: WelcomeState | null;
   /** UTC day the server last answered (the Welcome Path's "today"). */
   today: string | null;
+  /** The account level's matches as the server last answered (meta/accountLevel.ts shownMatches), null before one. */
+  account: AccountAnswer | null;
 }
 
-const fresh = (): CloudLocal => ({ applied: [], prefsHash: '', prefsAt: 0, opened: [], lucky: null, welcome: null, today: null });
+const fresh = (): CloudLocal => ({ applied: [], prefsHash: '', prefsAt: 0, opened: [], lucky: null, welcome: null, today: null, account: null });
+
+const COUNT_MAX = 1_000_000;
+const count = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(COUNT_MAX, Math.floor(v)) : null);
+
+/** A stored or answered account level: whole matches 0..1e6 (and this device's count then), else null. Pure. */
+export function parseAccount(v: unknown, dev?: number): AccountAnswer | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  const matches = count(o.matches);
+  if (matches === null) return null;
+  return { matches, dev: count(dev ?? o.dev) ?? 0 };
+}
 
 export function loadCloud(): CloudLocal {
   try {
@@ -91,6 +106,7 @@ export function loadCloud(): CloudLocal {
       lucky: o.lucky ? parseLuckyTable(o.lucky) : null,
       welcome: parseWelcome(o.welcome),
       today: typeof o.today === 'string' ? o.today.slice(0, 10) : null,
+      account: parseAccount(o.account),
     };
   } catch {
     return fresh();
@@ -278,6 +294,8 @@ export interface CloudView {
   welcome: WelcomeState | null;
   mastery: ReturnType<typeof parseMastery>;
   today: string | null;
+  /** The account level's matches (the server's one source), absent from an older server. */
+  account: { matches: number } | null;
 }
 
 export function parseView(body: unknown): CloudView | null {
@@ -291,6 +309,7 @@ export function parseView(body: unknown): CloudView | null {
     welcome: parseWelcome(o.welcome),
     mastery: parseMastery(o.mastery),
     today: typeof o.today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(o.today) ? o.today : null,
+    account: parseAccount(o.account, 0),
   };
 }
 
@@ -323,10 +342,20 @@ export function applyView(v: CloudView, local: CloudLocal, now = Date.now()): Ap
   local.lucky = v.lucky;
   local.welcome = v.welcome;
   local.today = v.today;
+  // the account level (one source): the server's count, with this device's count at the answer
+  const acc0 = local.account;
+  if (v.account) local.account = { matches: v.account.matches, dev: profile.matches };
   saveMastery(v.mastery);
   saveCloud(local);
   const changed =
-    out.changed || prefsTaken || t1.xp !== t0.xp || t1.chests !== t0.chests || q1 !== q0 || profile.unlocks.length !== p0.unlocks.length || profile.matches !== p0.matches;
+    out.changed ||
+    prefsTaken ||
+    t1.xp !== t0.xp ||
+    t1.chests !== t0.chests ||
+    q1 !== q0 ||
+    profile.unlocks.length !== p0.unlocks.length ||
+    profile.matches !== p0.matches ||
+    local.account?.matches !== acc0?.matches;
   return { ...out, changed };
 }
 

@@ -9,7 +9,9 @@ import { limit } from '../unit/cpu-budget';
  * Founder Nov 19: the leaderboards are their own window, opened from Boards in Home's left stack right under # Join
  * (the one way in: no Leaderboard pill by the promo, no Boards tab in the friends panel). Founder Nov 20: its tabs are
  * Level (top by account level), Country (my country, from my flag), Cats vs Dogs (total wins, a tug-of-war bar) and
- * Ranked (this season's ladder); Level by default, my own row once, the last tab remembered. And Home's avatar is my
+ * Ranked (this season's ladder); Level by default, my own row once, the last tab remembered. Then: "let's show Global.
+ * The idea for Country to see which country is #1 OR what's my # in my country (similar UX as in cats vs dogs in terms
+ * of tabs)": Level is titled Global, Country has Top countries and My country. And Home's avatar is my
  * avatar: the same picture Profile and the friends list draw, updated live. Desktop and the 844x390 touch phone; at
  * 1440x900, 1920x1080, 844x390, 667x375 and 390x844 the stack overlaps neither the profile, the nav, PLAY nor the
  * corner, and every tab fits the dialog (no sideways clip, 44 px tabs, 14 px text). Screenshots to
@@ -49,6 +51,19 @@ function fakeServer() {
               { rank: 2, name: 'Zygis', value: 6, m: 12, cc: 'LT', me: true, av: { i: 'h:nova' } },
             ],
             me: { rank: 2, value: 6, m: 12, name: 'Zygis', cc: 'LT' },
+            countries: {
+              rows: [
+                { rank: 1, cc: 'LT', players: 41, levels: 286, me: true },
+                { rank: 2, cc: 'LV', players: 22, levels: 190 },
+                { rank: 3, cc: 'GB', players: 18, levels: 121 },
+                { rank: 4, cc: 'US', players: 15, levels: 98 },
+                { rank: 5, cc: 'PL', players: 9, levels: 61 },
+                { rank: 6, cc: 'DE', players: 7, levels: 40 },
+                { rank: 7, cc: 'EE', players: 3, levels: 17 },
+              ],
+              mine: null,
+              total: 7,
+            },
           },
         };
       if (args.kind === 'sides')
@@ -154,7 +169,7 @@ async function checkDialog(game: Frame, name: string): Promise<void> {
   expect(bad, `${name}: no clipping, readable text`).toEqual([]);
 }
 
-test('Home Boards: Level, Country, Cats vs Dogs and Ranked, my row once, the last tab remembered', async ({ context, page, baseURL }, info) => {
+test('Home Boards: Global, Country (Top countries, My country), Cats vs Dogs and Ranked, my row once, the last tab remembered', async ({ context, page, baseURL }, info) => {
   const game = await home(context, page, baseURL!);
   const btn = game.locator('[data-testid="home-boards"]');
   await expect(btn).toBeVisible({ timeout: limit(60_000) });
@@ -169,8 +184,8 @@ test('Home Boards: Level, Country, Cats vs Dogs and Ranked, my row once, the las
   await expect(modal.locator('[role="dialog"][aria-modal="true"]')).toHaveAccessibleName('Leaderboards');
   // the friends panel does not open: the boards are their own window
   await expect(game.locator('.pl-social')).toHaveCount(0);
-  await expect(modal.locator('.pl-boards-sub .pl-btn')).toHaveText(['Level', 'Country', 'Cats vs Dogs', 'Ranked']);
-  // straight on Level: no extra step
+  await expect(modal.locator('.pl-boards-sub .pl-btn')).toHaveText(['Global', 'Country', 'Cats vs Dogs', 'Ranked']);
+  // straight on Global: no extra step
   await expect(modal.locator('[data-board="level"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(modal.locator('.pl-bd:not(.pin)')).toHaveCount(LEVEL_ROWS.length);
   await expect(modal.locator('.pl-bd').first().locator('.pl-bd-metric')).toContainText('Lv 21');
@@ -185,6 +200,15 @@ test('Home Boards: Level, Country, Cats vs Dogs and Ranked, my row once, the las
     await page.screenshot({ path: join(SHOTS, `boards-level-${info.project.name}.png`) });
   }
   await modal.locator('[data-board="country"]').click();
+  // Top countries first: which country is #1, mine marked
+  await expect(modal.locator('[data-scope="top"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(modal.locator('[data-testid="board-country-lead"]')).toContainText('Lithuania is #1');
+  await expect(modal.locator('.pl-bd-cc')).toHaveCount(7);
+  await expect(modal.locator('.pl-bd-cc.first.me')).toContainText('286 Lv');
+  await checkDialog(game, `${info.project.name} countries`);
+  if (SHOTS) await page.screenshot({ path: join(SHOTS, `boards-countries-${info.project.name}.png`) });
+  // My country: one tap, the same answer (no second call)
+  await modal.locator('[data-scope="mine"]').click();
   await expect(modal.locator('[data-testid="board-country-head"]')).toContainText('Lithuania');
   await expect(modal.locator('.pl-bd')).toHaveCount(2);
   await expect(modal.locator('.pl-bd.me')).toHaveCount(1);
@@ -274,9 +298,13 @@ test('Home Boards: clear of the profile, nav, PLAY and the corner icons; every t
     if (SHOTS) await page.screenshot({ path: join(SHOTS, `home-boards-${w}x${h}.png`) });
     await game.locator('[data-testid="home-boards"]').click();
     const modal = game.locator('[data-testid="boards-modal"]');
-    for (const tab of ['level', 'country', 'sides', 'ranked'] as const) {
-      await modal.locator(`[data-board="${tab}"]`).click();
-      await expect(modal.locator(tab === 'sides' ? '[data-testid="cvd"]' : '.pl-bd').first()).toBeVisible();
+    for (const tab of ['level', 'country', 'countries', 'sides', 'ranked'] as const) {
+      // Country is checked in both views: My country, then Top countries
+      if (tab === 'country' || tab === 'countries') {
+        await modal.locator('[data-board="country"]').click();
+        await modal.locator(`[data-scope="${tab === 'country' ? 'mine' : 'top'}"]`).click();
+      } else await modal.locator(`[data-board="${tab}"]`).click();
+      await expect(modal.locator(tab === 'sides' ? '[data-testid="cvd"]' : tab === 'countries' ? '.pl-bd-cc' : '.pl-bd').first()).toBeVisible();
       await page.waitForTimeout(tab === 'sides' ? 1300 : 300);
       await checkDialog(game, `${w}x${h} ${tab}`);
       if (SHOTS) await page.screenshot({ path: join(SHOTS, `boards-${tab}-${w}x${h}.png`) });

@@ -1,13 +1,14 @@
 // @vitest-environment happy-dom
 /**
  * The leaderboards window (founder Nov 20: "top by Account Level (global), top in my country, Cats VS Dogs total wins
- * visual cool representation, Top Ranked"): the Level, Country, Cats vs Dogs and Ranked tabs; the last tab remembered;
+ * visual cool representation, Top Ranked"; then "let's show Global ... Country to see which country is #1 OR what's my
+ * #"): the Global, Country (Top countries / My country), Cats vs Dogs and Ranked tabs; the last tab remembered;
  * my own row shown once (on the list when I am on the page, else pinned under it, in the same row style); Esc and the
  * scrim close it; the tug-of-war math.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResult } from '../../src/embed/api';
-import { boardKinds, boardView, openBoards, readBoardKind, rollValue, rowMetric, sidesView, splitPct } from '../../src/social/boardsModal';
+import { boardKinds, boardView, countriesView, openBoards, readBoardKind, readCountryScope, rollValue, rowMetric, sidesView, splitPct } from '../../src/social/boardsModal';
 
 beforeEach(() => {
   localStorage.clear();
@@ -87,7 +88,7 @@ describe('the window', () => {
 });
 
 describe('tabs', () => {
-  it('Level, Country, Cats vs Dogs, Ranked; Level by default; the last one used is remembered', async () => {
+  it('Global, Country, Cats vs Dogs, Ranked; Global by default; the last one used is remembered', async () => {
     expect(boardKinds()).toEqual(['level', 'country', 'sides', 'ranked']);
     expect(readBoardKind()).toBe('level');
     localStorage.setItem('pl.boards.tab', 'sides');
@@ -97,7 +98,7 @@ describe('tabs', () => {
     localStorage.clear();
     const { calls } = sheet((op) => (op === 'board.get' ? ok(levelRows) : null));
     await flush();
-    expect([...document.querySelectorAll('.pl-boards-sub .pl-btn')].map((b) => b.textContent)).toEqual(['Level', 'Country', 'Cats vs Dogs', 'Ranked']);
+    expect([...document.querySelectorAll('.pl-boards-sub .pl-btn')].map((b) => b.textContent)).toEqual(['Global', 'Country', 'Cats vs Dogs', 'Ranked']);
     document.querySelector<HTMLElement>('[data-board="ranked"]')!.click();
     await flush();
     // Ranked is the season ladder (`global`)
@@ -152,7 +153,64 @@ describe('rows', () => {
 });
 
 describe('Country', () => {
+  const countries = {
+    rows: [
+      { rank: 1, cc: 'LT', players: 4, levels: 23, me: true },
+      { rank: 2, cc: 'LV', players: 1, levels: 18 },
+    ],
+    mine: null,
+    total: 2,
+  };
+  const answer = { period: 'all', rows: [{ rank: 1, name: 'Zygis', value: 8, m: 18, cc: 'LT', me: true }, { rank: 2, name: 'Irvidas', value: 8, m: 19, cc: 'LT' }], me: { rank: 1, value: 8, m: 18 }, page: 0, pages: 1, local: { cc: 'LT', hidden: false }, countries };
+
+  it('Top countries by default: #1 crowned with its total level, my country marked; My country is one tap, no reload', async () => {
+    localStorage.setItem('pl.boards.tab', 'country');
+    expect(readCountryScope()).toBe('top');
+    const { calls, track } = sheet((op) => (op === 'board.get' ? ok(answer) : null));
+    await flush();
+    expect(calls).toHaveLength(1);
+    expect([...document.querySelectorAll('[data-scope]')].map((b) => [b.textContent, b.getAttribute('aria-pressed')])).toEqual([
+      ['Top countries', 'true'],
+      ['My country', 'false'],
+    ]);
+    expect(document.querySelector('[data-testid="board-country-lead"]')!.textContent).toContain('Lithuania is #1');
+    const rows = [...document.querySelectorAll('[data-testid="board-countries"] .pl-bd-cc')];
+    expect(rows.map((r) => r.getAttribute('data-cc'))).toEqual(['LT', 'LV']);
+    expect(rows[0]!.classList.contains('first')).toBe(true);
+    expect(rows[0]!.classList.contains('me')).toBe(true);
+    expect(rows[0]!.textContent).toContain('23 Lv');
+    expect(rows[0]!.textContent).toContain('4 players');
+    expect(rows[1]!.textContent).toContain('1 player');
+    expect(document.querySelector('.pl-boards-foot')!.hasAttribute('hidden')).toBe(true);
+    document.querySelector<HTMLElement>('[data-scope="mine"]')!.click();
+    await flush();
+    expect(calls).toHaveLength(1);
+    expect(localStorage.getItem('pl.boards.country')).toBe('mine');
+    expect(track).toHaveBeenCalledWith('board_view', { kind: 'country' });
+    expect(document.querySelector('[data-testid="board-country-head"]')!.textContent).toContain('Lithuania');
+    expect([...document.querySelectorAll('.pl-bd .pl-social-name')].map((n) => n.textContent)).toEqual(['Zygis', 'Irvidas']);
+  });
+
+  it('countriesView: my country below the list is pinned once; junk dropped; no answer is empty', () => {
+    const v = countriesView({ countries: { rows: [{ rank: 1, cc: 'LV', players: 9, levels: 80 }, { rank: 2, cc: 'xx', players: 1, levels: 1 }], mine: { rank: 57, cc: 'LT', players: 1, levels: 8 } } });
+    expect(v.rows.map((r) => r.cc)).toEqual(['LV']);
+    expect(v.leader!.cc).toBe('LV');
+    expect(v.pinned).toEqual({ rank: 57, cc: 'LT', players: 1, levels: 8, me: true });
+    expect(countriesView({ countries: { rows: [{ rank: 1, cc: 'LT', players: 1, levels: 8, me: true }], mine: { rank: 1, cc: 'LT', players: 1, levels: 8 } } }).pinned).toBeNull();
+    expect(countriesView(null)).toEqual({ rows: [], pinned: null, leader: null });
+  });
+
+  it('a pinned country under the list', async () => {
+    localStorage.setItem('pl.boards.tab', 'country');
+    sheet((op) => (op === 'board.get' ? ok({ ...answer, countries: { rows: [{ rank: 1, cc: 'LV', players: 9, levels: 80 }], mine: { rank: 57, cc: 'LT', players: 1, levels: 8 }, total: 57 } }) : null));
+    await flush();
+    const pin = document.querySelector('[data-testid="board-pinned"]')!;
+    expect(pin.textContent).toContain('#57');
+    expect(pin.textContent).toContain('Lithuania');
+  });
+
   it('the flag and country over the rows of my country; below its top 100 my rank shows 100+', async () => {
+    localStorage.setItem('pl.boards.country', 'mine');
     localStorage.setItem('pl.boards.tab', 'country');
     const { calls } = sheet((op) =>
       op === 'board.get'
@@ -167,6 +225,7 @@ describe('Country', () => {
   });
 
   it('a hidden flag: says why and one tap shows the flag, then the board loads', async () => {
+    localStorage.setItem('pl.boards.country', 'mine');
     let hidden = true;
     const { calls } = sheet((op) => {
       if (op === 'flag.set') {
@@ -192,6 +251,7 @@ describe('Country', () => {
 
   it('an unknown country and an empty country board explain themselves', async () => {
     localStorage.setItem('pl.boards.tab', 'country');
+    localStorage.setItem('pl.boards.country', 'mine');
     sheet((op) => (op === 'board.get' ? ok({ rows: [], me: null, page: 0, pages: 1, local: { cc: null, hidden: false } }) : null));
     await flush();
     expect(document.querySelector('[data-testid="board-country-why"]')!.textContent).toMatch(/don't know your country/);

@@ -1,9 +1,13 @@
 /**
  * The leaderboards window (founder Nov 19: "leaderboards should be a modal", opened from Boards on Home; the one way
  * in). Founder Nov 20: "top by Account Level (global), top in my country, Cats VS Dogs total wins visual cool
- * representation, Top Ranked". Four tabs:
- * - Level: the top 100 by account level (finished matches), every registered player (guests are not on boards);
- * - Country: the same board kept to players who show my country's flag (my country comes from my own flag);
+ * representation, Top Ranked", then "let's show Global. The idea for Country to see which country is #1 OR what's my #
+ * in my country (similar UX as in cats vs dogs in terms of tabs)". Four tabs:
+ * - Global: the top 100 by account level (the server's one count, the same level my Home and Profile show), every
+ *   registered player (guests are not on boards);
+ * - Country, two views switched like Cats vs Dogs' periods: Top countries (every country by its players' total
+ *   level, #1 crowned, mine marked or pinned) and My country (the Global board kept to players who show my country's
+ *   flag, my exact rank pinned under it);
  * - Cats vs Dogs: every counted match win by side, this season or all time, as a tug-of-war bar;
  * - Ranked: this season's ranked ladder, top 100 (tier and points).
  * My own row shows once: on the list when I am on the page, else pinned under it. Its own lazy chunk (with its
@@ -23,10 +27,57 @@ import './boardsModal.css';
 /** The tabs, in order. Country needs an account (it shows a sign-in line without one). */
 export type BoardKind = 'level' | 'country' | 'sides' | 'ranked';
 export const BOARD_KINDS: readonly BoardKind[] = Object.freeze(['level', 'country', 'sides', 'ranked']);
-const BOARD_LABEL: Readonly<Record<BoardKind, string>> = Object.freeze({ level: 'Level', country: 'Country', sides: 'Cats vs Dogs', ranked: 'Ranked' });
+const BOARD_LABEL: Readonly<Record<BoardKind, string>> = Object.freeze({ level: 'Global', country: 'Country', sides: 'Cats vs Dogs', ranked: 'Ranked' });
 /** The server's board for each tab (Ranked is the season ladder, `global`). */
 const SERVER_KIND: Readonly<Record<BoardKind, string>> = Object.freeze({ level: 'level', country: 'country', sides: 'sides', ranked: 'global' });
 const BOARD_KEY = 'pl.boards.tab';
+const COUNTRY_KEY = 'pl.boards.country';
+
+/** The Country tab's two views (one answer holds both). */
+export type CountryScope = 'top' | 'mine';
+const COUNTRY_SCOPES: readonly CountryScope[] = Object.freeze(['top', 'mine']);
+
+/** The Country view used last on this device, Top countries by default. */
+export function readCountryScope(): CountryScope {
+  let v: string | null = null;
+  try {
+    v = localStorage.getItem(COUNTRY_KEY);
+  } catch {
+    v = null;
+  }
+  return v === 'mine' ? 'mine' : 'top';
+}
+function rememberCountryScope(s: CountryScope): void {
+  try {
+    localStorage.setItem(COUNTRY_KEY, s);
+  } catch {
+    /* storage blocked: this session only */
+  }
+}
+
+/** One country on Top countries, as the server sends it. */
+export interface CountryRow {
+  rank: number;
+  cc: string;
+  players: number;
+  levels: number;
+  me?: boolean;
+}
+
+/**
+ * Top countries from the Country answer: the ranked rows, my country pinned when it is below them (never twice), and
+ * the leader. Junk rows dropped. Pure.
+ */
+export function countriesView(d: { countries?: unknown } | null | undefined): { rows: CountryRow[]; pinned: CountryRow | null; leader: CountryRow | null } {
+  const c = d?.countries && typeof d.countries === 'object' ? (d.countries as { rows?: unknown; mine?: unknown }) : null;
+  const ok = (r: unknown): r is CountryRow => {
+    const o = r as CountryRow | null;
+    return !!o && typeof o === 'object' && typeof o.cc === 'string' && /^[A-Z]{2}$/.test(o.cc) && Number.isFinite(Number(o.rank));
+  };
+  const rows = (Array.isArray(c?.rows) ? c!.rows : []).filter(ok);
+  const mine = ok(c?.mine) && !rows.some((r) => r.cc === (c!.mine as CountryRow).cc) ? { ...(c!.mine as CountryRow), me: true } : null;
+  return { rows, pinned: mine, leader: rows.find((r) => Number(r.rank) === 1) ?? null };
+}
 
 /** The tabs, in order (all four for everyone: Country explains itself when signed out). Pure. */
 export function boardKinds(): BoardKind[] {
@@ -203,6 +254,14 @@ const reducedMotion = (doc: Document): boolean => {
 
 const fmt = (n: number): string => n.toLocaleString('en-US');
 
+/** One country on Top countries: rank (#1 in bolt gold), the flag, the name, its total level over its players. */
+function countryRowHtml(r: CountryRow, pinned = false): string {
+  const n = (v: unknown) => Math.max(0, Math.floor(Number(v) || 0));
+  const first = Number(r.rank) === 1;
+  const players = n(r.players);
+  return `<div class="pl-social-row pl-bd pl-bd-cc${r.me ? ' me' : ''}${first ? ' first' : ''}${pinned ? ' pin' : ''}" role="listitem" data-cc="${esc(r.cc)}"${pinned ? ' data-testid="board-pinned"' : ''}><b class="pl-rank">${pinned ? '#' : ''}${n(r.rank)}</b><span class="pl-bd-ccflag" aria-hidden="true">${flagEmoji(r.cc)}</span><span class="pl-social-nm"><span class="pl-social-name">${esc(countryName(r.cc))}</span>${r.me ? '<small class="pl-bd-you">You</small>' : ''}</span><span class="pl-bd-metric"><b>${fmt(n(r.levels))} Lv</b><small>${fmt(players)} ${players === 1 ? 'player' : 'players'}</small></span></div>`;
+}
+
 /** One board row: rank, avatar, name and flag, the metric. The pinned "You" row is the same. */
 function rowHtml(kind: BoardKind, r: BoardRow, pinned = false): string {
   const metric = rowMetric(kind, r);
@@ -216,7 +275,7 @@ export function openBoards(parent: HTMLElement, deps: BoardsDeps): BoardsHandle 
   const was = doc.activeElement as HTMLElement | null;
   const opener = was && was !== doc.body ? was : null;
   const signedIn = deps.signedIn();
-  const board: { kind: BoardKind; page: number; data: Record<string, any> | null; range: SidesRange } = { kind: readBoardKind(), page: 0, data: null, range: 'season' };
+  const board: { kind: BoardKind; page: number; data: Record<string, any> | null; range: SidesRange; scope: CountryScope } = { kind: readBoardKind(), page: 0, data: null, range: 'season', scope: readCountryScope() };
   let disposed = false;
   let seq = 0;
   let raf = 0;
@@ -259,14 +318,27 @@ export function openBoards(parent: HTMLElement, deps: BoardsDeps): BoardsHandle 
     if (board.kind === 'sides') return sidesHtml(d);
     const local = board.kind === 'country' ? ((d.local ?? null) as { cc?: string | null; hidden?: boolean } | null) : null;
     const cc = typeof local?.cc === 'string' && /^[A-Z]{2}$/.test(local.cc) ? local.cc : null;
+    // Country: Top countries or My country, switched like Cats vs Dogs' periods (one answer holds both)
+    const scopes =
+      board.kind === 'country'
+        ? `<div class="pl-cvd-range pl-bd-scope" role="group" aria-label="Country board">${COUNTRY_SCOPES.map((s) => `<button type="button" class="pl-btn ghost small" data-scope="${s}" data-testid="country-${s}" aria-pressed="${board.scope === s}">${s === 'top' ? 'Top countries' : 'My country'}</button>`).join('')}</div>`
+        : '';
+    if (board.kind === 'country' && board.scope === 'top') {
+      const v = countriesView(d);
+      const lead = v.leader
+        ? `<p class="pl-bd-head pl-bd-lead" data-testid="board-country-lead"><span class="pl-bd-flag" aria-hidden="true">${flagEmoji(v.leader.cc)}</span><span>${esc(countryName(v.leader.cc))} is #1</span><small>${fmt(Math.max(0, Math.floor(Number(v.leader.levels) || 0)))} Lv in all</small></p>`
+        : '';
+      const list = v.rows.length ? v.rows.map((r) => countryRowHtml(r)).join('') : `<p class="pl-social-empty">No countries yet. Players who show their flag put their country on the board.</p>`;
+      return `${scopes}${lead}<div class="pl-bd-list" role="list" data-testid="board-countries">${list}${v.pinned ? countryRowHtml(v.pinned, true) : ''}</div><p class="pl-bd-note">Countries by their players' total level. Only players who show their flag count.</p>`;
+    }
     if (board.kind === 'country' && (local?.hidden || !cc)) {
       const why = local?.hidden
         ? `<p class="pl-social-empty">Show your flag to join your country's board. Only players who show their flag are on it.</p><button type="button" class="pl-btn small" data-a="board-flag" data-testid="board-show-flag">Show my flag</button>`
         : `<p class="pl-social-empty">We don't know your country yet, so there is no country board for you. Only players who show their flag are on it.</p>`;
-      return `<div class="pl-bd-why" data-testid="board-country-why">${why}</div>`;
+      return `${scopes}<div class="pl-bd-why" data-testid="board-country-why">${why}</div>`;
     }
-    // Country: the flag and the country over the list (only my own country; it comes from my flag)
-    const head = board.kind === 'country' && cc ? `<p class="pl-bd-head" data-testid="board-country-head"><span class="pl-bd-flag" aria-hidden="true">${flagEmoji(cc)}</span><span>${esc(countryName(cc))}</span><small>Top by level</small></p>` : '';
+    // My country: the flag and the country over the list (only my own country; it comes from my flag)
+    const head = board.kind === 'country' && cc ? `${scopes}<p class="pl-bd-head" data-testid="board-country-head"><span class="pl-bd-flag" aria-hidden="true">${flagEmoji(cc)}</span><span>${esc(countryName(cc))}</span><small>Top by level</small></p>` : '';
     const view = boardView(d);
     const empty =
       board.kind === 'country'
@@ -280,7 +352,7 @@ export function openBoards(parent: HTMLElement, deps: BoardsDeps): BoardsHandle 
   };
 
   const footHtml = (): string => {
-    if (board.kind === 'sides') return '';
+    if (board.kind === 'sides' || (board.kind === 'country' && board.scope === 'top')) return '';
     const pages = Math.max(1, Number(board.data?.pages ?? 1));
     const page = board.page;
     return pages > 1
@@ -339,7 +411,9 @@ export function openBoards(parent: HTMLElement, deps: BoardsDeps): BoardsHandle 
           ? `[data-board="${focused.dataset.board}"]`
           : focused.dataset.range
             ? `[data-range="${focused.dataset.range}"]`
-            : focused.dataset.a
+            : focused.dataset.scope
+              ? `[data-scope="${focused.dataset.scope}"]`
+              : focused.dataset.a
               ? `[data-a="${focused.dataset.a}"]`
               : null
         : null;
@@ -418,6 +492,16 @@ export function openBoards(parent: HTMLElement, deps: BoardsDeps): BoardsHandle 
       rememberBoardKind(kind);
       render();
       void load();
+      return;
+    }
+    const scope = t.closest<HTMLElement>('[data-scope]')?.dataset.scope as CountryScope | undefined;
+    if (scope) {
+      if (scope === board.scope) return;
+      // one answer holds both views: no reload
+      board.scope = scope;
+      rememberCountryScope(scope);
+      deps.track?.('board_view', { kind: scope === 'top' ? 'countries' : 'country' });
+      render();
       return;
     }
     const range = t.closest<HTMLElement>('[data-range]')?.dataset.range as SidesRange | undefined;

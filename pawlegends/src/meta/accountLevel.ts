@@ -1,10 +1,14 @@
 /**
  * The account level (docs/plans/moba/MODE-UNLOCKS.md, founder Nov 17: "other modes unlocks upon reaching certain LVL
- * (must be progression)"). One level for the whole account, from the finished matches the profile counts (bot, co-op,
- * PvP and party matches; Practice never counts). The count is synced to the account and max-merged on the server
- * (meta/progressCloud.ts), so it survives a restart, a reinstall and a new device; a guest keeps it on the device.
- * The backend's copy (backend/src/pawlegends/mode-unlocks.ts) checks the server-run queues on its own saved matches;
- * tests/unit/mode-unlocks.test.ts pins the two tables equal. Pure.
+ * (must be progression)"). One level for the whole account, from its finished matches (Practice never counts).
+ *
+ * One source (LEADERBOARDS.md, founder Nov 20: "my level ... is 8 ... but it shows LV 4"): a signed-in player sees the
+ * SERVER's count (backend/src/pawlegends/account-level.ts: saved matches plus a frozen legacy credit), the same number
+ * the Global and Country boards, other players' cards and the Ranked gate use. It comes with every progress sync
+ * (meta/progressCloud.ts `account`); `shownMatches` adds the matches this device finished since that answer, so the
+ * level moves at once after a match and the next answer settles it. A guest (no account) sees this device's count.
+ * The backend's copy of the table is backend/src/pawlegends/mode-unlocks.ts; tests/unit/mode-unlocks.test.ts pins the
+ * two tables equal. Pure.
  */
 
 /** Finished matches needed for each level: index 0 is Lv 1. Past the table, every LEVEL_STEP_AFTER matches is a level. */
@@ -45,6 +49,22 @@ export function levelInfo(matches: number): LevelInfo {
   const from = matchesForLevel(level);
   const to = matchesForLevel(level + 1);
   return { level, pct: Math.max(0, Math.min(1, (m - from) / Math.max(1, to - from))), toNext: Math.max(0, to - m) };
+}
+
+/** The server's account level answer this device keeps: the account's matches, and this device's count then. */
+export interface AccountAnswer {
+  matches: number;
+  dev: number;
+}
+
+/**
+ * The matches the shown account level counts: the server's (signed in) plus this device's matches since that answer,
+ * or this device's own count without one (a guest, or before the first answer). Pure.
+ */
+export function shownMatches(device: number, server: AccountAnswer | null | undefined): number {
+  const d = Math.max(0, Math.floor(Number(device) || 0));
+  if (!server) return d;
+  return Math.max(0, Math.floor(Number(server.matches) || 0)) + Math.max(0, d - Math.max(0, Math.floor(Number(server.dev) || 0)));
 }
 
 /** "1 more match" / "3 more matches". */
