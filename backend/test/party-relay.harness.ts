@@ -7,6 +7,7 @@
  */
 import { randomBytes } from 'crypto';
 import { createServer } from 'http';
+import { WebSocketServer } from 'ws';
 import { memoryMm } from '../src/pawlegends/mm/mm-bridge';
 import { MemoryMmRoomStore } from '../src/pawlegends/mm/mm-room.schema';
 import { PartyRelay } from '../src/pawlegends/party/party-relay';
@@ -36,6 +37,12 @@ const season = seasonDef(CURRENT_SEASON_ID)!;
 process.env.PAWLEGENDS_PARTY_TICKET_SECRET = randomBytes(24).toString('hex');
 /** e2e test accounts' nicknames and their profile rev (`/e2e/name`). */
 const e2eNames = new Map<string, { name: string; rev: number }>();
+/**
+ * e2e only (`/e2e/bounce?n=K`): the next K party sockets meet a draining second relay instead (production, Nov 20: two
+ * DigitalOcean instances, the older one drains for good, ~45% of connects get `server_moving`). It answers the hello
+ * with `server_moving` and closes 1 s later, as the balancer's close reached clients on api.tokentails.com.
+ */
+let bounce = 0;
 const port = Number(process.env.PORT || 3105);
 const tickets = new PartyTicketService();
 const origins = (process.env.FRONT_END_URLS || '').split(',').filter(Boolean);
@@ -63,6 +70,14 @@ const server = createServer((req, res) => {
         e2eNames.set(nm[1], { name: nm[2], rev: (prev?.rev ?? 0) + 1 });
         res.setHeader('content-type', 'application/json');
         res.end('{"ok":true}');
+        return;
+    }
+    const bn = /^\/e2e\/bounce\?n=(\d{1,4})$/.exec(req.url ?? '');
+    if (bn) {
+        bounce = Number(bn[1]);
+        res.setHeader('content-type', 'application/json');
+        res.setHeader('access-control-allow-origin', '*');
+        res.end(JSON.stringify({ ok: true, bounce }));
         return;
     }
     // the game's PvP capability check (pawlegends/src/meta/pvpCapability.ts)
@@ -133,6 +148,23 @@ const relay = new PartyRelay({
         if (/desync|divergence|error|lag|verify|refused|match_/.test(event))
             console.log(`[relay] ${event} ${JSON.stringify(props)}`);
     },
+});
+// the bounce sits in front of the relay's own upgrade handler (it handles every upgrade not bounced)
+const relayUpgrades = server.listeners('upgrade') as ((...a: unknown[]) => void)[];
+server.removeAllListeners('upgrade');
+const bouncer = new WebSocketServer({ noServer: true });
+server.on('upgrade', (req, socket, head) => {
+    if (bounce > 0 && (req.url ?? '').startsWith('/pawlegends/ws')) {
+        bounce--;
+        bouncer.handleUpgrade(req, socket, head, ws => {
+            ws.once('message', () => {
+                ws.send(JSON.stringify({ t: 'error', code: 'server_moving', retryMs: 250 }));
+                setTimeout(() => ws.close(1012, 'moving'), 1000);
+            });
+        });
+        return;
+    }
+    for (const l of relayUpgrades) l.call(server, req, socket, head);
 });
 server.listen(port, '127.0.0.1', () =>
     console.log(`[relay] listening on ${port} for ${origins.join(', ') || '(no origins)'}`)
