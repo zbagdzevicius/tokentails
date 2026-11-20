@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initialParty, isStranger, reduceParty, screenOf, type PartyEffect, type PartyEvent, type PartyState } from '../../src/party/partyClient';
+import { initialParty, isStranger, mmRetryMs, reduceParty, screenOf, type PartyEffect, type PartyEvent, type PartyState } from '../../src/party/partyClient';
 import type { PartyView, ServerJson } from '../../src/net/proto';
 
 /*
@@ -148,12 +148,39 @@ describe('Quick Play client (M1a)', () => {
     expect(old.fx.some((f) => f.t === 'close')).toBe(true);
   });
 
-  it('mm_locked and server_busy stop the search with a wait (never the party retry-start)', () => {
-    const locked = run(initialParty('queue'), welcome(), { t: 'error', code: 'mm_locked', retryMs: 45_000 });
-    expect(locked.s.queue).toMatchObject({ stopped: 'locked', retryMs: 45_000 });
+  it('a passing mm_locked or server_busy keeps searching and re-sends mm.join by itself (founder, 2026-11-20)', () => {
+    // the 30 s "Too many searches from this network" card with a disabled Search again was a dead end
+    const locked = run(initialParty('queue'), welcome(), { t: 'error', code: 'mm_locked', retryMs: 30_000 });
+    expect(locked.s.queue?.stopped).toBeNull();
+    expect(screenOf(locked.s)).toBe('queue');
+    const wait = locked.fx.find((f) => f.t === 'mm-retry') as Extract<PartyEffect, { t: 'mm-retry' }>;
+    expect(wait.ms).toBeGreaterThanOrEqual(1000);
+    expect(wait.ms).toBeLessThanOrEqual(10_000);
+    // the retry is due: the same search goes out again
+    const again = reduceParty(locked.s, { e: 'mm-retry' });
+    expect(sent(again.effects)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'any' }]);
     const busy = run(initialParty('queue'), welcome(), { t: 'error', code: 'server_busy', retryMs: 15_000 });
-    expect(busy.s.queue?.stopped).toBe('busy');
+    expect(busy.s.queue?.stopped).toBeNull();
+    expect(busy.fx.some((f) => f.t === 'mm-retry')).toBe(true);
     expect(busy.fx.some((f) => f.t === 'retry-start')).toBe(false);
+  });
+
+  it('retries back off (1 s up to 10 s) and stop once the player cancels', () => {
+    expect(mmRetryMs(undefined, 1)).toBe(2000);
+    expect(mmRetryMs(500, 1)).toBe(1000);
+    expect(mmRetryMs(30_000, 1)).toBe(10_000);
+    expect(mmRetryMs(undefined, 9)).toBe(10_000);
+    let st = run(initialParty('queue'), welcome(), { t: 'error', code: 'mm_locked' }).s;
+    for (let i = 0; i < 4; i++) st = reduceParty(st, { e: 'server', m: { t: 'error', code: 'mm_locked' } }).state;
+    expect(st.queue?.retries).toBe(5);
+    const cancelled = reduceParty(st, { e: 'unqueue' }).state;
+    expect(sent(reduceParty(cancelled, { e: 'mm-retry' }).effects)).toEqual([]);
+  });
+
+  it('a moderator lock (reason sanction) still stops the card with its time', () => {
+    const locked = run(initialParty('queue'), welcome(), { t: 'error', code: 'mm_locked', retryMs: 45_000, reason: 'sanction' } as unknown as ServerJson);
+    expect(locked.s.queue).toMatchObject({ stopped: 'locked', retryMs: 45_000 });
+    expect(locked.fx.some((f) => f.t === 'mm-retry')).toBe(false);
   });
 
   it('a PROTO 1 relay: Play online stops with "update" and sends nothing', () => {

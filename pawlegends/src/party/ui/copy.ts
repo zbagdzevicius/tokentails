@@ -132,7 +132,9 @@ export const COPY = Object.freeze({
   stoppedElsewhere: 'Searching in another tab',
   stoppedParty: 'Search stopped',
   stoppedUpdate: 'Update the game to play online',
-  stoppedLocked: (s: number) => `Too many searches from this network. Try again in ${s}s`,
+  /** Only a moderator lock stops a search now (every other refusal is retried quietly, founder 2026-11-20). */
+  stoppedLocked: (s: number) =>
+    `Online play is locked for this account. Try again in ${s >= 7200 ? `${Math.ceil(s / 3600)}h` : s >= 120 ? `${Math.ceil(s / 60)} min` : `${s}s`}`,
   stoppedBusy: (s: number) => `Too busy right now. Try again in ${s}s`,
   yourTeam: (side: string) => `Your team: ${side}`,
   teamSide: (side: string) => `Your team plays ${side}`,

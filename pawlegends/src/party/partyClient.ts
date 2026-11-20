@@ -88,6 +88,8 @@ export interface QueueState {
   /** The search stopped (the card offers Search again), or null while searching. */
   stopped: QueueStop | null;
   retryMs?: number;
+  /** Quiet re-sends of `mm.join` after a passing refusal (the card keeps searching; the delay grows with each). */
+  retries?: number;
   /** `mm.found` arrived: the card shows "Match found" until `found-shown` (1.2 s). */
   found: MmFound | null;
   /** A friend party queued together (its leader sent `mm.join`). */
@@ -194,7 +196,9 @@ export type PartyEffect =
   /** Casual PvP: the Accept card's 10 s clock starts. */
   | { t: 'accept-clock' }
   /** Casual PvP: a remake voided the running match (end it, show the void screen). */
-  | { t: 'voided' };
+  | { t: 'voided' }
+  /** A passing refusal of the search (`mm_locked` without a lock reason, `server_busy`): send `mm.join` again after `ms`. */
+  | { t: 'mm-retry'; ms: number };
 
 export type PartyEvent =
   | { e: 'server'; m: ServerJson }
@@ -215,7 +219,17 @@ export type PartyEvent =
   /** The match's relay has not come back for MATCH_LOST_MS (net-host.ts): leave the match screen, say so. */
   | { e: 'lost' }
   /** Still "Connecting…" (or "Joining …") after CONNECT_GIVE_UP_MS / JOIN_GIVE_UP_MS: say so, with Try again. */
-  | { e: 'timeout' };
+  | { e: 'timeout' }
+  /** The quiet retry of a refused search is due. */
+  | { e: 'mm-retry' };
+
+/**
+ * The delay before the quiet re-send of a refused search (founder, 2026-11-20: "Too many searches from this network.
+ * Try again in 30s ... lift such restrictions"): the relay's own `retryMs` when it gives one, at least 1 s and at most
+ * 10 s, growing with each retry in a row. The card keeps searching meanwhile: a passing refusal is never a dead end.
+ */
+export const mmRetryMs = (retryMs: number | undefined, tries: number): number =>
+  Math.min(10_000, Math.max(1000, Math.min(retryMs ?? 2000, 10_000), 500 * 2 ** Math.min(Math.max(0, tries), 5)));
 
 /**
  * Party play's connect budget (Nov 20 fix): the relay answers a healthy connect in ~0.3 s and a bounce off a draining
@@ -439,6 +453,13 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
     case 'side':
       if (!s.queue) return { state: s, effects: [] };
       return { state: { ...s, queue: { ...s.queue, side: ev.side } }, effects: [] };
+    case 'mm-retry': {
+      const q = s.queue;
+      const mine = !s.view || isStranger(s.view) || s.view.leader === s.view.you;
+      if (!q || q.stopped || q.found || s.accept || !s.welcomed || !mine) return { state: s, effects: [] };
+      send(mmJoinMsg(q.toCoop ? 'coop' : q.mode, q.side));
+      return { state: s, effects: fx };
+    }
     case 'found-shown':
       if (!s.queue?.found) return { state: s, effects: [] };
       return { state: { ...s, queue: null }, effects: [] };
@@ -662,8 +683,21 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       if (s.queue && m.code === 'mm_locked' && m.reason === 'pvp_newbie')
         return { state: { ...s, queue: { ...s.queue, stopped: 'newbie', status: null }, offer: null }, effects: [] };
       if (s.queue && m.code === 'pvp_update_required') return { state: { ...s, queue: { ...s.queue, stopped: 'update', status: null }, offer: null }, effects: [] };
-      if (s.queue && !s.queue.found && (m.code === 'mm_locked' || m.code === 'server_busy'))
-        return { state: { ...s, queue: { ...s.queue, stopped: m.code === 'mm_locked' ? 'locked' : 'busy', retryMs: m.retryMs ?? 15_000, status: null }, offer: null }, effects: [] };
+      // a moderator lock is the only refusal that stops the card (it says until when)
+      if (s.queue && !s.queue.found && m.code === 'mm_locked' && String(m.reason) === 'sanction')
+        return { state: { ...s, queue: { ...s.queue, stopped: 'locked', retryMs: m.retryMs ?? 15_000, status: null }, offer: null }, effects: [] };
+      // every other refusal of a search passes (a full queue, the script guard, a seat being given up): keep searching
+      // and send the search again by ourselves, never a "try again in 30s" card with a disabled button
+      if (s.queue && !s.queue.found && (m.code === 'mm_locked' || m.code === 'server_busy')) {
+        const tries = (s.queue.retries ?? 0) + 1;
+        return {
+          state: { ...s, queue: { ...s.queue, retries: tries } },
+          effects: [
+            { t: 'mm-retry', ms: mmRetryMs(m.retryMs, tries) },
+            { t: 'track', event: 'mm_refused_retry', props: { code: m.code, tries } },
+          ],
+        };
+      }
       // the relay refused this search for the party (not the leader, a member offline or still in a match): stop the
       // card with Search again instead of searching forever
       if (s.queue && !s.queue.found && !s.queue.stopped && (m.code === 'party_busy' || m.code === 'party_full'))
@@ -1029,6 +1063,14 @@ export class PartyClient {
         if (this.retryTimer) clearTimeout(this.retryTimer);
         this.retryTimer = setTimeout(() => this.socket.sendJson({ t: 'party.start' }), f.ms);
         return;
+      case 'mm-retry':
+        if (this.mmRetry) clearTimeout(this.mmRetry);
+        // a little jitter: players refused together (a full queue) do not come back in the same tick
+        this.mmRetry = setTimeout(() => {
+          this.mmRetry = null;
+          this.dispatch({ e: 'mm-retry' });
+        }, Math.round(f.ms * (1 + Math.random() * 0.25)));
+        return;
       case 'found-hold':
         if (this.foundTimer) clearTimeout(this.foundTimer);
         this.foundTimer = setTimeout(() => this.dispatch({ e: 'found-shown' }), FOUND_HOLD_MS);
@@ -1090,6 +1132,7 @@ export class PartyClient {
   private foundTimer: ReturnType<typeof setTimeout> | null = null;
   private sideTimer: ReturnType<typeof setTimeout> | null = null;
   private serverWait: ReturnType<typeof setTimeout> | null = null;
+  private mmRetry: ReturnType<typeof setTimeout> | null = null;
   private sideSentAt = -Infinity;
   private joinTracked = false;
   private penaltyTracked = false;
@@ -2065,6 +2108,7 @@ export class PartyClient {
     if (this.foundTimer) clearTimeout(this.foundTimer);
     if (this.sideTimer) clearTimeout(this.sideTimer);
     if (this.serverWait) clearTimeout(this.serverWait);
+    if (this.mmRetry) clearTimeout(this.mmRetry);
     this.unwatch();
     this.socket.close(true);
     this.el.remove();

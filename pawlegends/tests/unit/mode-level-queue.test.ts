@@ -14,9 +14,10 @@ describe('a mode above the account level', () => {
     const r = reduceParty(s, { e: 'server', m: { t: 'error', code: 'mm_locked', reason: 'mode_level', mode: 'classic', level: 3, have: 3, need: 4 } as never });
     expect(r.state.queue).toMatchObject({ stopped: 'mode_level', modeLock: { mode: 'classic', level: 3, have: 3, need: 4 } });
     expect(r.effects).toContainEqual({ t: 'track', event: 'mode_locked_queue', props: { mode: 'classic', level: 3 } });
-    // a plain rate lock is still the generic one
-    const plain = reduceParty(s, { e: 'server', m: { t: 'error', code: 'mm_locked', retryMs: 5000 } as never }).state;
-    expect(plain.queue).toMatchObject({ stopped: 'locked' });
+    // a plain (passing) refusal keeps searching and retries by itself
+    const plain = reduceParty(s, { e: 'server', m: { t: 'error', code: 'mm_locked', retryMs: 5000 } as never });
+    expect(plain.state.queue).toMatchObject({ stopped: null });
+    expect(plain.effects.some((f) => f.t === 'mm-retry')).toBe(true);
   });
 
   it('the card: your own level line, or a party member; Casual instead of Search again', () => {

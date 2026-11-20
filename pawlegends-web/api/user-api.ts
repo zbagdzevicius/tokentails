@@ -204,16 +204,27 @@ export interface PartyTicketResult {
  * never stored or logged. 503 `PAWLEGENDS_PARTY_TICKET_UNAVAILABLE` means the backend has no ticket secret: the game
  * then plays as an unscored guest.
  */
+/**
+ * A 429 on the ticket is retried quietly (founder, 2026-11-20: "lift such restrictions"): a ticket lost to a limit
+ * sent a signed-in player into the relay as a guest. Two retries fit inside the game's 6 s ticket wait.
+ */
+export const PARTY_TICKET_429_RETRIES = [600, 1500];
+
 const pawlegendsPartyTicket = async (options: { signal?: AbortSignal } = {}): Promise<PartyTicketResult> => {
   let response: Response;
-  try {
-    response = await apiFetch(
-      `${apiUrl}/pawlegends/party/ticket`,
-      { method: "POST", body: "{}", headers: authHeaders(), signal: options.signal },
-      { guestSession: true, requireAccount: false }
-    );
-  } catch {
-    return { ticket: null, status: 0, code: null };
+  for (let attempt = 0; ; attempt++) {
+    try {
+      response = await apiFetch(
+        `${apiUrl}/pawlegends/party/ticket`,
+        { method: "POST", body: "{}", headers: authHeaders(), signal: options.signal },
+        { guestSession: true, requireAccount: false }
+      );
+    } catch {
+      return { ticket: null, status: 0, code: null };
+    }
+    const wait = PARTY_TICKET_429_RETRIES[attempt];
+    if (response.status !== 429 || wait === undefined || options.signal?.aborted) break;
+    await new Promise((r) => setTimeout(r, wait + Math.round(Math.random() * 200)));
   }
   if (!response.ok) return { ticket: null, status: response.status, code: await readErrorCode(response) };
   try {
