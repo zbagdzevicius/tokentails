@@ -913,6 +913,9 @@ export class PartyClient {
     const prev = this.state;
     const { state, effects } = reduceParty(prev, ev);
     this.state = state;
+    // the connect budget (and "waited N s") counts from when this "Connecting…" / "Joining …" began, not from the open:
+    // a code typed after a minute on the code boxes gets its own 30 s
+    if (screenOf(state) === 'connecting' && screenOf(prev) !== 'connecting') this.openedAt = this.now();
     this.queueBook(prev, ev);
     if (state.view?.deadlineMs !== undefined && ev.e === 'server' && ev.m.t === 'party') this.deadlineAt = this.now() + state.view.deadlineMs;
     if (state.view?.waiting?.length && !prev.view?.waiting?.length) this.waitingAt = this.now();

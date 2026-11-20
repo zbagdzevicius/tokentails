@@ -2299,6 +2299,8 @@ export class App {
     const unreachable = this.party?.state.error?.code === 'party_unreachable' && !this.party.state.view;
     if (unreachable || Date.now() - p.at > 120_000) {
       stop();
+      // the player closed the party screen themselves: the invite is dropped quietly, no late "no connection" toast
+      if (!this.party || this.party.state.view) return;
       void import('../social/inviteInbox').then((m) => m.lineToast(document, `Couldn't invite ${p.name}: no connection. Try again from Friends.`, 'invite-failed'));
       return;
     }
