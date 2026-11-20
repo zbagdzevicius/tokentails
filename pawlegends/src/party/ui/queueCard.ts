@@ -16,6 +16,7 @@ import { RANKED_BOTS } from '../../meta/ranked';
 import { matchesForLevel } from '../../meta/accountLevel';
 import { regionText } from '../../meta/rankedPing';
 import { COOP_SWITCH_GRACE_S, queueBots } from '../botTrickle';
+import { partyBonusChipHtml } from '../../meta/partyBonus';
 
 export type QueueStop =
   | 'away'
@@ -74,6 +75,8 @@ export interface QueueModel {
   warn: boolean;
   /** A friend party queued together (every member sees the card; any Cancel stops it for the party). */
   party: boolean;
+  /** PARTY-XP.md: other humans from this player's own party (the "Party bonus +50% XP" chip when 1 or more). */
+  partyMates?: number;
   stopped: QueueStop | null;
   /** Seconds before Search again works (locked or busy), or 0. */
   retryS: number;
@@ -158,6 +161,9 @@ export function sideChipHtml(side: MmSide, disabled = false): string {
   ).join('')}</div>`;
 }
 
+/** PARTY-XP.md: the party bonus chip, only for a party with another human from the player's own party. */
+const bonusChip = (m: Pick<QueueModel, 'partyMates'>): string => ((m.partyMates ?? 0) > 0 ? partyBonusChipHtml(m.partyMates ?? 0) : '');
+
 export function queueCardHtml(m: QueueModel): string {
   if (m.match) {
     const diff = DIFF_LABEL[m.match.difficulty] ?? m.match.difficulty;
@@ -203,7 +209,7 @@ export function queueCardHtml(m: QueueModel): string {
       : `<p class="pp-note" data-testid="mm-ranked-note"><span data-live="rkbots">${esc(bots)}</span></p>`;
     const requeued = m.pvp?.requeued ? `<p class="pp-hint" data-testid="mm-requeued">${COPY.requeued}</p>` : '';
     return `<div class="pp-card pp-narrow pp-queue" data-state="searching" data-mode="pvp" data-ranked="1" data-testid="mm-queue">
-    <h2>${m.party ? COPY.partyQueued : COPY.findingRanked}</h2>
+    <h2>${m.party ? COPY.partyQueued : COPY.findingRanked}</h2>${bonusChip(m)}
     ${low}${requeued}
     <p class="pp-qtime" role="timer" aria-live="off"><b data-live="waited" data-testid="mm-timer">${clockText(m.waitedS)}</b>${est}</p>
     ${pvpPipsHtml(m.found, m.pvp?.theirs ?? 0, 3)}
@@ -221,7 +227,7 @@ export function queueCardHtml(m: QueueModel): string {
       : '';
     const requeued = m.pvp.requeued && !m.pvp.toCoop ? `<p class="pp-hint" data-testid="mm-requeued">${COPY.requeued}</p>` : '';
     return `<div class="pp-card pp-narrow pp-queue" data-state="searching" data-mode="pvp" data-testid="mm-queue">
-    <h2>${m.party ? COPY.partyQueued : COPY.findingPvp}</h2>
+    <h2>${m.party ? COPY.partyQueued : COPY.findingPvp}</h2>${bonusChip(m)}
     ${low}${requeued}
     <p class="pp-qtime" role="timer" aria-live="off"><b data-live="waited" data-testid="mm-timer">${clockText(m.waitedS)}</b>${est}</p>
     ${pvpPipsHtml(m.found, m.pvp.theirs, m.teamSize === 5 ? 5 : 3, m.pvp.toCoop ? undefined : m.waitedS)}
@@ -232,7 +238,7 @@ export function queueCardHtml(m: QueueModel): string {
   </div>`;
   }
   return `<div class="pp-card pp-narrow pp-queue" data-state="searching" data-testid="mm-queue">
-    <h2>${m.party ? COPY.partyQueued : COPY.finding}</h2>
+    <h2>${m.party ? COPY.partyQueued : COPY.finding}</h2>${bonusChip(m)}
     ${low}
     <p class="pp-qtime" role="timer" aria-live="off"><b data-live="waited" data-testid="mm-timer">${clockText(m.waitedS)}</b>${est}</p>
     ${pipsHtml(m.found, m.teamSize === 5 ? 5 : 3)}

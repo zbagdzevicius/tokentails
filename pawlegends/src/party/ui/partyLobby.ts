@@ -12,6 +12,7 @@ import { ccHtml } from '../../social/flags';
 import { displayCode, type MemberView, type PartyView } from '../../net/proto';
 import { COPY, DIFF_LABEL, esc } from './copy';
 import { avatarHtml, titleText } from '../../ui/avatar';
+import { partyBonusChipHtml } from '../../meta/partyBonus';
 
 export interface LobbyModel {
   view: PartyView;
@@ -33,6 +34,8 @@ export interface LobbyModel {
   friends?: boolean;
   /** MODE-UNLOCKS.md: the leader has Ranked (Lv 10): a Ranked search beside "Play online" (solo or duo). */
   ranked?: boolean;
+  /** PARTY-XP.md: other humans from this player's own party (the "Party bonus +50% XP" chip); absent: the members. */
+  partyMates?: number;
 }
 
 /** The peer-visible name of a member for this viewer (the owner sees its own custom cat name). */
@@ -128,8 +131,10 @@ export function lobbyHtml(o: LobbyModel): string {
   const online = canQueue
     ? `${o.ranked ? `<button type="button" class="pl-btn ghost small pp-online" data-p="queue-ranked" data-testid="party-queue-ranked">${COPY.rankedQueue}</button>` : ''}<button type="button" class="pl-btn small pp-online" data-p="queue" data-testid="party-queue">${COPY.online}</button>`
     : '';
+  // PARTY-XP.md: the party bonus for playing together (a hint to invite while alone)
+  const bonus = partyBonusChipHtml(o.partyMates ?? (v.mm ? 0 : v.members.length - 1));
   return `<div class="pp-card pp-lobby" data-phase="${v.phase}">
-    <div class="pp-head"><h2>${COPY.party}${v.locked ? ' <span class="pp-pill">Locked</span>' : ''}</h2><span class="pp-row">${online}<button type="button" class="pl-btn ghost small" data-p="leave" data-testid="party-leave">${COPY.leave}</button></span></div>
+    <div class="pp-head"><h2>${COPY.party}${v.locked ? ' <span class="pp-pill">Locked</span>' : ''}${bonus}</h2><span class="pp-row">${online}<button type="button" class="pl-btn ghost small" data-p="leave" data-testid="party-leave">${COPY.leave}</button></span></div>
     <div class="pp-grid">
       <section class="pp-code-col" aria-label="${COPY.partyCode}">
         <small>${COPY.partyCode}</small>

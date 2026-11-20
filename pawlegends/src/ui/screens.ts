@@ -29,6 +29,7 @@ import { bindCameraHeightRow, cameraHeightRowHtml } from './cameraHeightRow';
 import type { CameraHeight } from '../render/camera/height';
 import type { QuestView } from '../meta/quests';
 import { TREAT_XP, type TreatGain } from '../meta/treats';
+import { partyBonusLineHtml } from '../meta/partyBonus';
 import type { Grade } from '../meta/grade';
 import { rankedKindLine, type RankedKind, type RankedResult } from '../meta/ranked';
 // card art (ui/cards/): pick tiles as collectible cards, the title badge, the MVP card
@@ -525,6 +526,8 @@ export interface ResultsOpts {
   highlights?: boolean;
   /** Treat Track progress from this match (fun plan F4). */
   treats?: TreatGain | null;
+  /** PARTY-XP.md: the party bonus inside the match's Season XP (played with humans from the player's own party). */
+  partyBonus?: { pct: number; xp: number } | null;
   /** gaps4: a coat chroma this match earned (playing in the coat), named under the Treat Track. */
   chromaEarned?: { name: string; coat: string } | null;
   /** Mode unlocking (MODE-UNLOCKS.md §3.3): the mode this match unlocked ("New mode unlocked: Blitz"), or null. */
@@ -733,7 +736,7 @@ export function rewardStrip(o: Pick<ResultsOpts, 'grade' | 'treats' | 'dareLink'
 /** "about 3 matches to go" (the results' Treat Track block and the Treat Track panel, ui/collection.ts). */
 export const toGoText = (n: number): string => `about ${n} ${n === 1 ? 'match' : 'matches'} to go`;
 
-function treatBlock(t: TreatGain): string {
+function treatBlock(t: TreatGain, party?: { pct: number; xp: number } | null): string {
   const pct = (v: number): string => `${Math.round(v * 100)}%`;
   const opened = t.rewards.length > 0;
   const fillTo = opened ? 1 : t.after;
@@ -741,6 +744,7 @@ function treatBlock(t: TreatGain): string {
     <div class="head"><b>Pass</b><small>+${t.gained} Season XP</small></div>
     <div class="bar"><i class="fill"></i></div>
     ${opened ? `<div class="open">${icon('crown')}<span><b>Chest opened: ${esc(t.rewards.map((r) => r.name).join(', '))}</b><small>Free, yours to keep.</small></span></div>` : ''}
+    ${partyBonusLineHtml(party)}
     ${t.dayBonus > 0 ? `<p class="bonus" data-daybonus="${t.dayBonus}">First win of the day: +${t.dayBonus} Season XP</p>` : ''}
     <p class="next">Next chest: <b>${esc(t.next.name)}</b> <small data-togo="${t.toGo}">${esc(toGoText(t.toGo))}</small></p>
   </div>`;
@@ -779,7 +783,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${tip ? `<p class="pl-result-tip">${icon('paw')}<span>${esc(tip)}</span></p>` : ''}
       <div data-slot="save"></div>
       ${o.ranked ? `<div class="pl-rk" data-slot="ranked" data-testid="ranked-result" role="status">${rankedBlockHtml(null, o.rankedKind)}</div>` : ''}
-      ${o.treats ? treatBlock(o.treats) : ''}${o.chromaEarned ? `<p class="pl-chroma-earned" data-chroma-earned="${esc(o.chromaEarned.name)}">New chroma: <b>${esc(`${o.chromaEarned.name} ${o.chromaEarned.coat}`)}</b>. Wear it from Champions, then Coats.</p>` : ''}
+      ${o.treats ? treatBlock(o.treats, o.partyBonus) : ''}${o.chromaEarned ? `<p class="pl-chroma-earned" data-chroma-earned="${esc(o.chromaEarned.name)}">New chroma: <b>${esc(`${o.chromaEarned.name} ${o.chromaEarned.coat}`)}</b>. Wear it from Champions, then Coats.</p>` : ''}
       ${o.quests && o.quests.length ? `<div class="pl-quests"><b>Daily quests</b>${o.quests.map((q) => questRow(q)).join('')}</div>` : ''}
       ${o.firstWin ? `<div class="unlock">${icon('crown')}<span><b>${FIRST_WIN_COAT_NAME} unlocked</b><small>Free, yours to keep.</small></span></div>` : ''}
       <div class="dare ${o.dareLink ? '' : 'hidden'}">

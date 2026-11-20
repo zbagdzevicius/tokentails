@@ -101,6 +101,7 @@ const loadMatch = (): Promise<typeof import('./matchSession')> => import('./matc
 import { canPickDifficulty, difficultyFor, forfeitTick, guideMode, isRookie, pickable, PICK_DIFFICULTY_FROM, rookieAvailable } from './firstSession';
 import { dayKey, followsHero, loadQuests, progressQuests, questViews, saveQuests } from '../meta/quests';
 import { addTreatXp, loadTreats, loadTreatsRaw, migrateTreats, perMinuteShare, saveTreats, treatXpFor } from '../meta/treats';
+import { partyBonusPct, partyBonusXp } from '../meta/partyBonus';
 import { parseAudio } from '../embed/bridge';
 import { installIntegration, type Integration } from '../embed/integrate';
 import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast, reportable } from '../social/report';
@@ -1038,6 +1039,8 @@ export class App {
   }
 
   /** Gap plan P4: the ranked match being played (its card before the match, read through the host). */
+  /** PARTY-XP.md: other humans from this player's own party in the party match being played (the results' bonus). */
+  private partyMates = 0;
   private rankedRun: { before: Promise<RankedCard | null>; kind?: RankedKind } | null = null;
 
   /** The signed-in player's ranked card (`GET /pawlegends/ranked/me` through the host), or null. */
@@ -1634,6 +1637,7 @@ export class App {
             startMatch: (host, match, _view, info) => {
               // gap plan P4: a ranked match remembers the ranked card before it, for the results block
               this.rankedRun = info?.ranked ? { before: this.rankedCard(), ...(info.rankedKind ? { kind: info.rankedKind } : {}) } : null;
+              this.partyMates = info?.mates ?? 0;
               this.startPartyMatch(host, match, info?.backfill === true);
             },
             // Quick Play: the remembered side, the analytics context and the pick's default hero per side
@@ -2896,7 +2900,12 @@ export class App {
     const myGrade = grades.slots.find((g) => g.slot === mySlot)?.grade ?? 'C';
     const gradeXp = forfeit ? 0 : Math.round(GRADE_TREAT_XP[myGrade] * perMinuteShare(blitz ? e.result.ticks : undefined));
     // GAPS A6: the first win of the local day adds its bonus (once a day, no streak, no catnip)
-    const treats = addTreatXp(loadTreats(), practice ? 0 : treatXpFor({ won, takedowns: e.fun.takedowns, pudding: e.fun.pudding, forfeit, ...(blitz ? { ticks: e.result.ticks } : {}), ...(draw ? { draw } : {}) }) + quests.xp + gradeXp, ownedIds, { won: won && !practice, day: dayKey() });
+    const matchXp = practice ? 0 : treatXpFor({ won, takedowns: e.fun.takedowns, pudding: e.fun.pudding, forfeit, ...(blitz ? { ticks: e.result.ticks } : {}), ...(draw ? { draw } : {}) }) + gradeXp;
+    // PARTY-XP.md: a party match with humans from the player's own party adds +50% / +75% to the match XP (the server
+    // pays the real Season XP the same way; quests and the first win of the day stay flat)
+    const mates = partyEnd && !practice ? this.partyMates : 0;
+    const partyBonus = mates > 0 ? { pct: partyBonusPct(mates), xp: partyBonusXp(matchXp, mates) } : null;
+    const treats = addTreatXp(loadTreats(), matchXp + (partyBonus?.xp ?? 0) + quests.xp, ownedIds, { won: won && !practice, day: dayKey() });
     saveTreats(treats.state);
     if (treats.rewards.length) {
       for (const r of treats.rewards) if (!prof.unlocks.includes(r.id)) prof.unlocks.push(r.id);
@@ -3024,6 +3033,7 @@ export class App {
         bestMoment: e.fun.best,
         highlights: !partyEnd && !practice && moment.replay && moment.simVersion === SIM_VERSION,
         treats,
+        ...(partyBonus && partyBonus.xp > 0 ? { partyBonus } : {}),
         chromaEarned,
         modeUnlocked,
         quests: quests.views,

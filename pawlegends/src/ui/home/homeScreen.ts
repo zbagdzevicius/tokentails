@@ -51,6 +51,7 @@ import { HEROES } from '../../data/heroes';
 import { bindEvents, needsTap } from '../events/eventsBind';
 import { liveopsState, onLiveops } from '../../meta/liveops';
 import type { GoalsTab } from './goalsPanel';
+import { PARTY_BUTTON_LINE, PARTY_XP_BONUS } from '../../meta/partyBonus';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 const cssHex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
@@ -276,7 +277,7 @@ export function extrasHtml(o: Pick<HomeScreenOpts, 'extras' | 'reveal' | 'modes'
   };
   // Nov 19 (the founder: "party button ... should be around the play button"): Party sits with the pills beside PLAY
   const partyBtn = party
-    ? `<button type="button" class="hm-alt" data-a="party" data-mode="party" data-testid="home-party" aria-label="Party: play with friends"><span class="hm-alt-i" aria-hidden="true">${PEOPLE}</span><span class="hm-alt-t"><b>Party</b><small>Play with friends</small></span></button>`
+    ? `<button type="button" class="hm-alt" data-a="party" data-mode="party" data-testid="home-party" aria-label="Party: play with friends, plus ${PARTY_XP_BONUS.oneMate}% XP" title="${PARTY_BUTTON_LINE}"><span class="hm-alt-i" aria-hidden="true">${PEOPLE}</span><span class="hm-alt-t"><b>Party</b><small data-testid="home-party-line">${PARTY_BUTTON_LINE}</small></span></button>`
     : '';
   return `<div class="hm-extras" role="group" aria-label="More ways to play" data-testid="home-extras">${ids.map(btn).join('')}${partyBtn}</div>`;
 }

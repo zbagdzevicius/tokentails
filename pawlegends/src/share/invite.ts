@@ -1,9 +1,10 @@
 /**
- * Invite and comeback codes in the Social sheet (backend `pawlegends/growth`, gaps.md S1; Wild Rift "See You on the
- * Rift"). Every registered player has a 7-character code and a link (`https://pawlegends.app/?ref=CODE`). A new friend,
- * or one away for 21+ days, accepts it (the web page redeems the link after sign-in; the code field here works in the
- * apps too), finishes 3 verified matches, and both players claim a coat here. Free: no price anywhere, so it shows in
- * the apps as well.
+ * Invite and comeback links in the Social sheet (backend `pawlegends/growth`, gaps.md S1; Wild Rift "See You on the
+ * Rift"). Every registered player has an invite link (`https://pawlegends.app/?ref=CODE`). A new friend, or one away for
+ * 21+ days, opens it (the web page redeems the link after sign-in), finishes 3 verified matches, and both players claim
+ * a coat here. Free: no price anywhere, so it shows in the apps as well. Founder, Nov 20: the 7-character code is no
+ * longer shown or typed in the game (no code chip, no "Enter a code"; `entering` and `redeem` stay for the sheet's
+ * wiring but nothing opens the code field); the server still accepts old codes and links.
  *
  * The match counter is written only by the `/live` save on the server; this row only reads it, accepts a code and
  * claims. Ops go through the host's allowlist (`growth.invite`, `growth.redeem`, `growth.claim`): no token or URL in
@@ -137,13 +138,16 @@ export function inviteLine(s: InviteState): string {
 export function inviteCardText(s: InviteState): { title: string; sub: string } {
   const line = inviteLine(s);
   if (line.startsWith('Invite a friend:')) return { title: 'Invite a friend', sub: `They play ${s.need} matches, you both get a coat` };
-  return { title: line, sub: s.claimable ? 'A coat is ready to claim' : 'Invite more friends with your code' };
+  return { title: line, sub: s.claimable ? 'A coat is ready to claim' : 'Invite more friends with your link' };
 }
 
 /**
- * The invite card's markup (the top of the Friends tab, or the empty state): a title, one short line, the invite code
- * as a copy chip and Share link. `closable`: a × folds it away (the gift in the sheet's header opens it again); a new
- * player with no friends sees it without one. Names are filled by textContent through `data-name`.
+ * The invite card's markup (the top of the Friends tab, or the empty state): a title, one short line and Share link.
+ * Founder, Nov 20: no invite code on the card (the 7-character code chip and "Enter a code" are gone; friends find each
+ * other by nickname, parties by party link). The link still carries the code, so a new friend who opens it is redeemed
+ * on the web after sign-in and both still earn the coat; old links and codes keep working on the server. `closable`: a
+ * × folds it away (the gift in the sheet's header opens it again); a new player with no friends sees it without one.
+ * Names are filled by textContent through `data-name`.
  */
 export function inviteRowHtml(s: InviteState | null, entering: boolean, closable = true): string {
   if (entering)
@@ -153,21 +157,15 @@ export function inviteRowHtml(s: InviteState | null, entering: boolean, closable
   const claim = s.claimable
     ? `<button type="button" class="pl-btn small" data-a="inv-claim" data-testid="invite-claim">Claim coat${s.claimable > 1 ? ` ×${s.claimable}` : ''}</button>`
     : '';
-  const chip = `<button type="button" class="pl-inv-code" data-a="inv-copy" data-testid="invite-copy" aria-label="${esc(`Copy invite code ${s.code}`)}" title="Copy code"><small>Invite code</small><b>${esc(s.code)}</b>${ICON_COPY}</button>`;
   const fold = closable ? `<button type="button" class="pl-ico pl-inv-fold" data-a="inv-fold" aria-expanded="true" aria-label="Hide invite" title="Hide">${ICON_X}</button>` : '';
-  // a real secondary button (round 6), not an underlined text link
-  const enter = !s.accepted ? `<button type="button" class="pl-btn small ghost pl-inv-have" data-a="inv-enter" data-testid="invite-enter" aria-label="Got an invite code? Enter it">${ICON_KEY}<span>Enter a code</span></button>` : '';
-  // round 8: one even grid on every screen: a coat to claim, then the code across the card, then Share link and
-  // Enter a code side by side at equal width (no lone half-width button)
+  // round 8: one even grid on every screen; Nov 20: a coat to claim, then Share link across the card (no code)
   const share = `<button type="button" class="pl-btn small ghost pl-inv-share" data-a="inv-share" data-testid="invite-share">${ICON_SHARE}<span>Share link</span></button>`;
-  return `<div class="pl-invite-row" data-testid="invite-row"><div class="pl-inv-top"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="${esc(title)}"></span><small class="pl-inv-sub">${esc(sub)}</small></span>${fold}</div><div class="pl-inv-acts${enter ? '' : ' is-one'}">${claim}${chip}${share}${enter}</div></div>`;
+  return `<div class="pl-invite-row" data-testid="invite-row"><div class="pl-inv-top"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="${esc(title)}"></span><small class="pl-inv-sub">${esc(sub)}</small></span>${fold}</div><div class="pl-inv-acts is-one">${claim}${share}</div></div>`;
 }
 
 const ICON_X = icon('close', 18);
-const ICON_COPY = icon('copy', 16);
 const ICON_GIFT = icon('gift', 20);
 const ICON_SHARE = icon('share', 16);
-const ICON_KEY = icon('key', 16);
 
 /**
  * The fold choice is remembered on this device only (a per-viewer convenience; storage can fail). With no choice yet
@@ -234,18 +232,6 @@ export class InviteRow {
       this.deps.render();
       return;
     }
-    if (a === 'inv-copy') {
-      const code = this.state?.code ?? '';
-      if (!code) return;
-      try {
-        await navigator.clipboard?.writeText(code);
-        this.deps.note('Invite code copied');
-      } catch {
-        this.deps.note(`Your invite code: ${code}`);
-      }
-      this.deps.render();
-      return;
-    }
     if (a === 'inv-enter' || a === 'inv-cancel') {
       this.entering = a === 'inv-enter';
       this.deps.render();
@@ -297,7 +283,7 @@ export class InviteRow {
       await nav?.clipboard?.writeText(`${inviteText()} ${s.link}`);
       this.deps.note('Invite link copied');
     } catch {
-      this.deps.note(`Your code: ${s.code}`);
+      this.deps.note('Could not share the link. Try again.');
     }
     this.deps.render();
   }

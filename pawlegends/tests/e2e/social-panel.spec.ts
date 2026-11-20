@@ -796,7 +796,10 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
   await expect(card).toHaveCount(0);
   await sheet.locator('[data-testid="invite-open"]').click();
   await expect(card).toBeVisible();
-  await expect(card.locator('[data-testid="invite-copy"]')).toContainText('Invite code');
+  // founder, Nov 20: no invite code on the card (Share link only)
+  await expect(card.locator('[data-testid="invite-share"]')).toBeVisible();
+  await expect(card.locator('[data-testid="invite-copy"]')).toHaveCount(0);
+  await expect(card).not.toContainText('Invite code');
   await expect(sheet.locator('[data-testid="invite-open"]')).toHaveAttribute('aria-expanded', 'true');
   expect(await layoutProblems(game, touch)).toEqual([]);
   expect(await inviteCardProblems(game)).toEqual([]);
@@ -1054,16 +1057,13 @@ test('Social panel: empty list and a guest', async ({ context, page, baseURL }, 
   expect(await sheet.evaluate((el) => (el.textContent ?? '').split('you both get a coat').length - 1)).toBe(1);
   // round 8: the card's buttons are an even grid, and its line ends on two words at least
   expect(await inviteCardProblems(game)).toEqual([]);
-  // "Got a code?" is a real secondary button (44 px, no underline), not a text link
-  const have = sheet.locator('[data-testid="invite-enter"]');
-  await expect(have).toHaveClass(/pl-btn/);
-  expect(await have.evaluate((el) => getComputedStyle(el).textDecorationLine)).toBe('none');
-  expect(Math.round((await have.boundingBox())!.height)).toBeGreaterThanOrEqual(44);
-  // a sideways phone: the invite code and Share sit above the fold
+  // founder, Nov 20: no "Enter a code" (the code is not typed in the game any more)
+  await expect(sheet.locator('[data-testid="invite-enter"]')).toHaveCount(0);
+  // a sideways phone: Share link sits above the fold
   for (const [w, h] of touch ? ([[844, 390], [667, 375]] as const) : ([] as const)) {
     await page.setViewportSize({ width: w, height: h });
     await page.waitForTimeout(300);
-    for (const id of ['invite-copy', 'invite-share']) {
+    for (const id of ['invite-share']) {
       const b = (await sheet.locator(`[data-testid="${id}"]`).boundingBox())!;
       expect(b.y + b.height, `${w}x${h} ${id} above the fold`).toBeLessThanOrEqual(h + 0.5);
     }

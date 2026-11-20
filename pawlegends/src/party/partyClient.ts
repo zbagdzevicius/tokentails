@@ -37,6 +37,7 @@ import type { SlotStats } from '../sim/api';
 import { matchPersonas } from './personas';
 import { againLabel, partyRows, partyRowsHtml } from './ui/partyResults';
 import { PartyChat } from './ui/partyChat';
+import { friendMates } from '../meta/partyBonus';
 import type { AvatarView, ChatReportKind } from '../data/chatPhrases';
 
 // ------------------------------------------------------------------------------------------------ the reducer
@@ -770,7 +771,7 @@ export interface PartyHooks {
   /** Start loading the match chunk and assets (during the lobby and the pick). */
   preload?(): Promise<unknown>;
   /** Start the party match in the app (a MatchSession on this NetHost). `backfill`: this player took a leaver's seat. */
-  startMatch(host: () => NetHost, match: MatchMsg, view: PartyView, info?: { backfill: boolean; ranked?: boolean; rankedKind?: RankedKind }): void;
+  startMatch(host: () => NetHost, match: MatchMsg, view: PartyView, info?: { backfill: boolean; ranked?: boolean; rankedKind?: RankedKind; mates?: number }): void;
   /** Quick Play: the side of the first search ("Play online"; the last one this viewer used). */
   queueSide?: MmSide;
   /** Casual PvP: the first search's queue (the title's mode chip). */
@@ -996,6 +997,7 @@ export class PartyClient {
       }
     }
     if (state.view && !prev.view) this.enteredParty();
+    this.noteFriends(state.view);
     if (state.view?.code && state.view.code !== prev.view?.code) rememberParty(state.view.code);
     // a stranger seated in a live Quick Play match: a closed tab (a phone that killed it) comes back to it
     const strangerLive = isStranger(state.view) && (state.inMatch || state.view?.phase === 'match');
@@ -1040,7 +1042,7 @@ export class PartyClient {
           },
           f.match,
           this.state.view!,
-          { backfill: this.backfilled, ...(this.state.rankedMatch ? { ranked: true, ...(this.state.rankedKind ? { rankedKind: this.state.rankedKind } : {}) } : {}) },
+          { backfill: this.backfilled, mates: this.partyMates(), ...(this.state.rankedMatch ? { ranked: true, ...(this.state.rankedKind ? { rankedKind: this.state.rankedKind } : {}) } : {}) },
         );
         return;
       case 'note':
@@ -1288,6 +1290,30 @@ export class PartyClient {
   /** The region ping was started this visit (the ranked queue card shows it; SOCIAL-RANKED.md §7.11 groundwork). */
   private pinged = false;
 
+  /**
+   * PARTY-XP.md: the members of this player's own friend party (the last lobby without strangers), kept through a Quick
+   * Play match that added strangers to the same party; a matched party of strangers (another code) has none.
+   */
+  private friendIds: ReadonlySet<string> = new Set();
+  private friendCode: string | null = null;
+  private noteFriends(v: PartyView | null | undefined): void {
+    if (!v) {
+      this.friendIds = new Set();
+      this.friendCode = null;
+    } else if (!v.mm) {
+      this.friendIds = new Set(v.members.map((m) => m.id));
+      this.friendCode = v.code;
+    } else if (v.code !== this.friendCode) {
+      this.friendIds = new Set();
+      this.friendCode = v.code;
+    }
+  }
+
+  /** PARTY-XP.md: other humans from this player's own party in the party now (the chip and the match's results). */
+  partyMates(): number {
+    return friendMates(this.state.view, this.friendIds);
+  }
+
   private queueModel() {
     const s = this.state;
     const q = s.queue!;
@@ -1310,6 +1336,7 @@ export class PartyClient {
       lowPriorityS: Math.max(0, ((q.status?.lowPriorityMs ?? 0) - (this.now() - this.statusAt)) / 1000),
       warn: q.status?.warn === 'leaver',
       party: q.party,
+      partyMates: this.partyMates(),
       stopped: q.stopped,
       retryS,
       match: q.found ? { humans: q.found.humans, bots: q.found.bots, side: q.found.side, difficulty: q.found.difficulty, ...(q.found.ai ? { ai: true } : {}) } : null,
@@ -2004,6 +2031,7 @@ export class PartyClient {
           online: s.mmOk,
           ranked: s.mmOk && !!this.h.rankedOpen?.(),
           friends: !!this.h.friends,
+          partyMates: this.partyMates(),
         });
         break;
       case 'pick':

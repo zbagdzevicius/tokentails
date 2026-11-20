@@ -36,6 +36,14 @@
   display: inline-block; vertical-align: middle; font-size: 12px; padding: 2px 8px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-bolt-rgb) / 0.18); color: var(--pp-gold);
   font-family: var(--v6-font-ui); font-style: normal; font-weight: 700; text-shadow: none; letter-spacing: 0.04em;
 }
+/* PARTY-XP.md: the party bonus chip (lobby title, queue card); a dim invite hint while alone */
+.pl-party .pp-xp-bonus {
+  display: inline-block; vertical-align: middle; margin-left: 8px; font-size: 12px; padding: 2px 8px; border-radius: var(--v6-r-xs);
+  background: rgb(var(--v6-cream-rgb) / 0.08); color: var(--v6-muted);
+  font-family: var(--v6-font-ui); font-style: normal; font-weight: 700; text-transform: none; text-shadow: none; letter-spacing: 0.02em; white-space: nowrap;
+}
+.pl-party .pp-xp-bonus.on { background: rgb(var(--v6-bolt-rgb) / 0.22); color: var(--pp-gold); }
+.pl-party .pp-narrow > h2 + .pp-xp-bonus { margin: -4px 0 0; }
 .pl-party .pp-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center; }
 .pl-party .pp-code-col .pp-row { justify-content: flex-start; }
 .pl-party .pp-col { display: flex; flex-direction: column; gap: 10px; align-items: stretch; width: min(320px, 100%); }

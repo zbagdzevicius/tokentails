@@ -28,9 +28,13 @@ by the sim, the replay record or the hash, and no price shows in the iOS or Andr
 - Link: `https://pawlegends.app/?ref=CODE`; the landing sends `?ref=` on to `/play` (`routes.json` `playQueryKeys`).
   The web host keeps the code on the device, drops it from the address bar and redeems it once the visitor is signed in
   (`components/pawlegends/invite.ts`).
-- The game's Social sheet (Friends tab) has the invite row: the code, progress, Invite (share or copy), Code (type a
-  friend's code, works in the apps) and Claim coat (`pawlegends/src/share/invite.ts`). API ops `growth.invite`,
-  `growth.redeem`, `growth.claim`.
+- The game's Social sheet (Friends tab) has the invite row: progress, Share link (share or copy the link) and Claim coat
+  (`pawlegends/src/share/invite.ts`). API ops `growth.invite`, `growth.claim` (`growth.redeem` stays wired, unused).
+- Founder, Nov 20: the 7-character code is no longer shown or typed anywhere in the game or on the site (no code chip,
+  no "Enter a code", no code in a share fallback). Friends add each other by nickname and play through party links.
+  The invite link still carries the code inside it, so a new friend who opens it is redeemed on the web after sign-in
+  and both still earn the coat. Nothing changes on the server: `POST /pawlegends/growth/invite/redeem` still accepts
+  old codes and links, pending invites keep counting matches, and claimable coats stay claimable from the card.
 - The match counter is written only by the `/live` save (`applyInviteProgress`, after the Game row exists).
 - Routes: `GET /pawlegends/growth/invite`, `POST /pawlegends/growth/invite/redeem {code, deviceId?}`,
   `POST /pawlegends/growth/invite/claim` (registered accounts).

@@ -85,18 +85,20 @@ describe('the invite row in the Social sheet', () => {
   // the card starts open (a choice made on this device); with no choice it folds once there are friends to show
   beforeEach(() => localStorage.setItem('pl.social.inviteFolded', '0'));
 
-  it('its × folds it away and remembers it; Copy copies the code', async () => {
+  it('its × folds it away and remembers it; Share link copies the link (never the bare code)', async () => {
     const writes: string[] = [];
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t: string) => void writes.push(t) } });
     const t = sheet(invite({ invited: [], accepted: null }));
     await flush();
     const row = () => document.querySelector<HTMLElement>('[data-testid="invite-row"]')!;
     expect(row().querySelector('.pl-social-name')!.textContent).toBe('Invite a friend');
     expect(row().textContent).toContain('They play 3 matches, you both get a coat');
-    document.querySelector<HTMLElement>('[data-testid="invite-copy"]')!.click();
+    document.querySelector<HTMLElement>('[data-testid="invite-share"]')!.click();
     await flush();
-    expect(writes).toEqual(['K7QX2MP']);
-    expect(document.querySelector('.pl-social-note')!.textContent).toBe('Invite code copied');
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toContain('https://pawlegends.app/?ref=K7QX2MP');
+    expect(document.querySelector('.pl-social-note')!.textContent).toBe('Invite link copied');
     document.querySelector<HTMLElement>('[data-a="inv-fold"]')!.click();
     await flush();
     expect(document.querySelector('[data-testid="invite-row"]')).toBeNull();
@@ -106,20 +108,23 @@ describe('the invite row in the Social sheet', () => {
     localStorage.removeItem('pl.social.inviteFolded');
   });
 
-  it('shows the code and progress, takes the first row, and keeps names as text', async () => {
+  it('shows the progress (no invite code), takes the first row, and keeps names as text', async () => {
     sheet(invite());
     await flush();
     const row = document.querySelector('[data-testid="invite-row"]')!;
     expect(row).toBeTruthy();
-    expect(row.textContent).toContain('K7QX2MP');
+    // founder, Nov 20: the 7-character code is not shown, copied or typed in the game
+    expect(row.textContent).not.toContain('K7QX2MP');
+    expect(row.textContent).not.toMatch(/invite code|enter a code/i);
     expect(row.querySelector('.pl-social-name')!.textContent).toBe('<b>Mia</b>: 1/3 matches');
     expect(document.querySelector('b b, .pl-invite-row b:not(:only-child) b')).toBeNull();
     expect(document.querySelector('[data-testid="invite-claim"]')).toBeNull();
     // the invite card sits above the list (no paging: every friend has a row, the card takes none of their slots)
     expect(document.querySelectorAll('.pl-fr')).toHaveLength(7);
     expect(row.closest('.pl-social-body')!.firstElementChild).toBe(row);
-    // a title and a short line, never one long cut sentence; the code is a copy chip, Share is the one button
-    expect(row.querySelector('[data-testid="invite-copy"]')!.textContent).toContain('K7QX2MP');
+    // a title and a short line, never one long cut sentence; Share link is the one button
+    expect(row.querySelector('[data-testid="invite-copy"]')).toBeNull();
+    expect(row.querySelector('[data-testid="invite-enter"]')).toBeNull();
     expect(row.querySelector('[data-testid="invite-share"]')).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/[$€]\s?\d/);
   });
@@ -135,29 +140,11 @@ describe('the invite row in the Social sheet', () => {
     t.s.dispose();
   });
 
-  it('a typed code goes to growth.redeem; a bad one says why', async () => {
-    const t = sheet(invite());
+  it('there is no way to type a code in the game any more (the server still redeems old links on the web)', async () => {
+    sheet(invite());
     await flush();
-    document.querySelector<HTMLElement>('[data-testid="invite-enter"]')!.click();
-    await flush();
-    const form = document.querySelector<HTMLFormElement>('[data-testid="invite-code-form"]')!;
-    form.querySelector<HTMLInputElement>('input[name="invite"]')!.value = 'zzzz-zzz';
-    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    await flush();
-    expect(t.calls.find((c) => c.op === 'growth.redeem')?.args).toEqual({ code: 'ZZZZZZZ' });
-    expect(document.querySelector('.pl-social-note')!.textContent).toBe('No invite has this code.');
-    // friend.add is never called for the invite form
-    expect(t.calls.some((c) => c.op === 'friend.add')).toBe(false);
-    const again = document.querySelector<HTMLFormElement>('[data-testid="invite-code-form"]')!;
-    again.querySelector<HTMLInputElement>('input[name="invite"]')!.value = 'abcdefg';
-    again.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    await flush();
-    expect(document.querySelector('.pl-social-note')!.textContent).toMatch(/Invite accepted/);
-    expect(document.querySelector('[data-testid="invite-code-form"]')).toBeNull();
-    // the accepted invite is the row's line now, and the code button is gone
-    expect(document.querySelector('[data-testid="invite-row"] .pl-social-name')!.textContent).toBe("Leo's invite: 0/3 matches");
     expect(document.querySelector('[data-testid="invite-enter"]')).toBeNull();
-    t.s.dispose();
+    expect(document.querySelector('[data-testid="invite-code-form"]')).toBeNull();
   });
 
   it('no row when the server has no invite state (an older backend)', async () => {
