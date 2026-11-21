@@ -17,6 +17,8 @@ export interface DmHostDeps {
   inMatch?(): boolean;
   /** The unread DM total changed (the panel's chat badge). */
   onUnread?(n: number): void;
+  /** Unread DMs per friend code, after each `chat.list` and when a thread is read (the panel rows' red dots). */
+  onUnreadBy?(by: Record<string, number>): void;
   /** A friend was blocked from the thread's menu (Home's list reloads). */
   onBlocked?(): void;
   track?(event: string, props?: Record<string, string | number | boolean>): void;
@@ -53,11 +55,18 @@ export class DmHost {
 
   private recount(): void {
     let n = 0;
-    for (const [c, t] of this.threads) if (!t.muted && !(this.open && c === this.code)) n += t.unread;
+    const by: Record<string, number> = {};
+    for (const [c, t] of this.threads)
+      if (!t.muted && !(this.open && c === this.code) && t.unread > 0) {
+        n += t.unread;
+        by[c] = t.unread;
+      }
+    // the total first: Home clears its per-friend dots when the total is 0, then takes these
     if (n !== this.unread) {
       this.unread = n;
       this.deps.onUnread?.(n);
     }
+    this.deps.onUnreadBy?.(by);
   }
 
   private who(code: string): { code: string; name: string; av?: FriendRow['av'] } | null {

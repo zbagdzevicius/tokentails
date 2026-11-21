@@ -7,7 +7,8 @@
  * the round Friends, Settings and Sound buttons gone from Home; names escaped. Placeholder names only.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { clockText, railCount, railInvite, railListHtml, railOrder, railStatus, rankBadge, RAIL_META, seenText } from '../../src/ui/home/friendsRail';
+import { clockText, COMPACT_QUERY, railCount, railInvite, railListHtml, railOrder, railStatus, rankBadge, RAIL_META, seenText, unreadElsewhere, unreadOf } from '../../src/ui/home/friendsRail';
+import { unreadByOf } from '../../src/social/socialState';
 import { disposeHome, homeScreen, patchHome, setHomeFriends, type HomeScreenOpts } from '../../src/ui/home/homeScreen';
 import { modeList } from '../../src/ui/modeSelect/modes';
 import type { FriendRow } from '../../src/social/presence';
@@ -146,6 +147,58 @@ describe('Home with the friends panel', () => {
     expect(onAddFriend).toHaveBeenCalledTimes(1);
     root.querySelector<HTMLElement>('[data-testid="home-friends-chat"]')!.click();
     expect(onFriendChat).toHaveBeenCalledTimes(1);
+  });
+
+  it('message button on every row (offline too) opens that DM; a red dot while that friend has unread (founder Nov 21)', () => {
+    const onFriendMessage = vi.fn();
+    const onFriendChat = vi.fn();
+    const pepper = MIXED.find((x) => x.name === 'Pepper')!;
+    const mochi = MIXED.find((x) => x.name === 'Mochi')!;
+    const root = homeScreen(document.body, base({ friends: MIXED, friendsMeta: { unread: 3, unreadBy: { [pepper.code]: 2, [mochi.code]: 1 } }, onFriendMessage, onFriendChat }));
+    expect(root.querySelectorAll('[data-testid="home-friend-msg"]')).toHaveLength(MIXED.length);
+    const row = (name: string) => [...root.querySelectorAll<HTMLElement>('[data-testid="home-friend"]')].find((r) => r.querySelector('.fr-name')?.textContent === name)!;
+    // the message button sits beside the +
+    expect(row('Mochi').querySelector('.fr-msg + .fr-plus')).not.toBeNull();
+    expect(row('Pepper').querySelector('[data-testid="home-friend-unread"]')).not.toBeNull();
+    expect(row('Pepper').querySelector('.fr-msg')!.getAttribute('aria-label')).toBe('Message Pepper: 2 unread');
+    expect(row('Mochi').querySelector('[data-testid="home-friend-unread"]')).not.toBeNull();
+    expect(row('Waffle').querySelector('[data-testid="home-friend-unread"]')).toBeNull();
+    expect(row('Waffle').querySelector('.fr-msg')!.getAttribute('aria-label')).toBe('Message Waffle');
+    expect(root.querySelectorAll('[data-testid="home-friend-unread"]')).toHaveLength(2);
+    // every unread is on a row: no header chat button (one place per thing)
+    expect(root.querySelector('[data-testid="home-friends-chat"]')).toBeNull();
+    // an offline friend's message button opens their DM (not the card, not an invite)
+    row('Pepper').querySelector<HTMLElement>('.fr-msg')!.click();
+    expect(onFriendMessage).toHaveBeenCalledWith(expect.objectContaining({ name: 'Pepper' }));
+    expect(onFriendChat).not.toHaveBeenCalled();
+    // read: the dot clears in place
+    setHomeFriends(root, MIXED, { unread: 1, unreadBy: { [mochi.code]: 1 } });
+    expect(row('Pepper').querySelector('[data-testid="home-friend-unread"]')).toBeNull();
+    expect(root.querySelectorAll('[data-testid="home-friend-unread"]')).toHaveLength(1);
+    // a DM from a player off the list: the header's chat button carries only that one
+    setHomeFriends(root, MIXED, { unread: 2, unreadBy: { [mochi.code]: 1 } });
+    expect(root.querySelector('[data-testid="home-friends-unread"]')?.textContent).toBe('1');
+  });
+
+  it('unread helpers: per code, elsewhere, chat.list rows (muted and junk left out)', () => {
+    expect(unreadOf({ unreadBy: { A: 3, B: -1, C: Number.NaN } }, 'A')).toBe(3);
+    expect(unreadOf({ unreadBy: { A: 3 } }, 'B')).toBe(0);
+    expect(unreadOf(RAIL_META, 'A')).toBe(0);
+    const list = [f('Mochi', { state: 'online' })];
+    expect(unreadElsewhere(list, { unread: 4, unreadBy: { [list[0]!.code]: 3 } })).toBe(1);
+    expect(unreadElsewhere(list, { unread: 2, unreadBy: { [list[0]!.code]: 3 } })).toBe(0);
+    expect(unreadElsewhere(null, { unread: 2, unreadBy: {} })).toBe(2);
+    expect(
+      unreadByOf([
+        { with: { code: 'PL-A' }, unread: 2, muted: false },
+        { with: { code: 'PL-B' }, unread: 5, muted: true },
+        { with: { code: 'PL-C' }, unread: 0 },
+        { with: {}, unread: 1 },
+        null,
+        'x',
+      ]),
+    ).toEqual({ 'PL-A': 2 });
+    expect(COMPACT_QUERY).toBe('(max-height: 500px), (max-width: 700px)');
   });
 
   it('greys the + of a friend already in my party', () => {

@@ -53,6 +53,22 @@ export interface ChatThreadRow {
   muted: boolean;
 }
 
+/**
+ * Unread DMs per friend code from `chat.list` rows (Home's friends panel: a red dot on that friend's message button).
+ * Muted threads, zero counts and junk rows are left out. Pure.
+ */
+export function unreadByOf(rows: readonly unknown[]): Record<string, number> {
+  const by: Record<string, number> = {};
+  for (const r of rows) {
+    const t = r as Partial<ChatThreadRow> | null;
+    const code = t?.with?.code;
+    const n = t?.unread;
+    if (!t || t.muted || typeof code !== 'string' || !code || typeof n !== 'number' || !Number.isFinite(n) || n <= 0) continue;
+    by[code] = (by[code] ?? 0) + Math.floor(n);
+  }
+  return by;
+}
+
 /** "Teammate"/"Opponent" rows of one match, as `social.recent` sends them (newest match first). */
 export interface RecentRow {
   room: string;

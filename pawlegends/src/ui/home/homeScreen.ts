@@ -121,7 +121,9 @@ export interface HomeScreenOpts extends LobbyScreenOpts {
   onFriendInvite?(f: FriendRow): void;
   /** The panel's add-friend button: the add-friend sheet (add by name, requests, recent players). */
   onAddFriend?(): void;
-  /** The panel's chat button (unread DMs). */
+  /** A friend's message button: the DM thread with them (offline too). */
+  onFriendMessage?(f: FriendRow): void;
+  /** The panel's chat button (unread DMs from a player off the list). */
   onFriendChat?(): void;
   /** A guest's Sign in on the panel. */
   onFriendsSignIn?(): void;
@@ -714,6 +716,10 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
         onInvite: (f) => {
           o.sound?.('click');
           o.onFriendInvite?.(f);
+        },
+        onMessage: (f) => {
+          o.sound?.('click');
+          o.onFriendMessage?.(f);
         },
         onWhy: (f, why) => {
           o.sound?.('click');

@@ -105,7 +105,7 @@ import { partyBonusPct, partyBonusXp } from '../meta/partyBonus';
 import { parseAudio } from '../embed/bridge';
 import { installIntegration, type Integration } from '../embed/integrate';
 import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast, reportable } from '../social/report';
-import { ASK_PHRASE, LATER, friendRowsOf, laterStep } from '../social/socialState';
+import { ASK_PHRASE, LATER, friendRowsOf, laterStep, unreadByOf } from '../social/socialState';
 import { flagHidden, hasMatchFlags, matchFlag, myCountry, refreshMyFlag, setFlagHidden } from '../social/flags';
 import { matchPersona, matchPersonaSlots } from '../party/personas';
 import { loadMastery } from '../meta/mastery';
@@ -1255,8 +1255,9 @@ export class App {
       // nav Heroes and the nameplate: the champion browser on the Home hero, with SELECT / BUY / UNLOCK under the
       // description (Nov 12, the founder). Never a match: a match starts only from PLAY, Ranked or Practice.
       onHeroes: () => this.openHeroBrowser(),
-      // the Yarn chip (founder Nov 17): the store's Champions (Unlock · N Yarn); apps, which open no store: Heroes
-      onYarn: () => (s.storeOpen && !this.isApp() ? this.openStore('lobby', 'champions') : this.openHeroBrowser()),
+      // the Yarn chip (founder Nov 17; Nov 21 "redirected to Store, not to champ select"): the store's Champions
+      // (Unlock · N Yarn) on the web and in the apps, where the store is its Yarn-only mode (no price, CHAMPION-STORE.md §9)
+      onYarn: () => this.openStore('lobby', 'champions'),
       seasonEnd: ends ? `Ends ${ends}` : '',
       base,
       firstTime: p.matches === 0,
@@ -1346,6 +1347,7 @@ export class App {
       onFriendOpen: (f) => this.openProfile({ code: f.code, name: f.name, av: f.av, cc: f.cc ?? null, friend: true, source: 'friends' }),
       onFriendInvite: (f) => this.inviteAfterParty({ code: f.code, name: f.name }),
       onAddFriend: () => this.openFriendsSheet('add'),
+      onFriendMessage: (f) => this.openChat({ code: f.code, name: f.name, av: f.av }),
       onFriendChat: () => this.openChat(null),
       onFriendsSignIn: () => this.integration.requestSignIn('save-progress'),
       onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
@@ -1725,6 +1727,10 @@ export class App {
   private friendRequests = 0;
   /** Unread DMs (CHAT-AVATARS §6.1): the friends panel's chat badge. */
   private chatUnread = 0;
+  /** Unread DMs per friend code (the panel rows' red dots), and the unread total they were asked for. */
+  private chatBy: Record<string, number> = {};
+  private chatByFor = 0;
+  private chatByBusy = false;
   private socialPulse: ReturnType<typeof setInterval> | null = null;
   private socialRev: string | undefined;
   /**
@@ -1746,15 +1752,48 @@ export class App {
   private readonly socialToasted = new Set<string>();
 
   /** The friends panel's badges and invite rule: requests, unread DMs, a guest, my party. */
-  private friendsMeta(): { requests: number; unread: number; guest: boolean; myParty: string | null } {
+  private friendsMeta(): { requests: number; unread: number; unreadBy: Record<string, number>; guest: boolean; myParty: string | null } {
     const v = this.party?.state.view;
-    return { requests: this.friendRequests, unread: this.chatUnread, guest: !accountState().signedIn, myParty: v && !this.party?.state.inMatch ? v.code : null };
+    return { requests: this.friendRequests, unread: this.chatUnread, unreadBy: this.chatBy, guest: !accountState().signedIn, myParty: v && !this.party?.state.inMatch ? v.code : null };
   }
 
   /** Home's friends panel, in place (the title is not re-rendered for a pulse). */
   private paintFriends(): void {
     if (this.screen === 'title') setHomeFriends(this.screenEl, this.homeFriends, this.friendsMeta());
     this.friendsSheet?.refresh();
+    void this.refreshChatBy();
+  }
+
+  /**
+   * The rows' red dots (founder Nov 21): unread DMs per friend from `chat.list`, asked again only when the unread total
+   * (pulse, inbox, relay notice) moved since the last answer; none unread: cleared without a call. An open DM host
+   * reports its own counts (`onUnreadBy`).
+   */
+  private async refreshChatBy(): Promise<void> {
+    if (!this.bridge.active || this.screen !== 'title') return;
+    if (this.chatUnread <= 0 || !accountState().signedIn) {
+      this.chatByFor = 0;
+      if (Object.keys(this.chatBy).length) {
+        this.chatBy = {};
+        this.paintFriends();
+      }
+      return;
+    }
+    if (this.chatByFor === this.chatUnread || this.chatByBusy) return;
+    const want = this.chatUnread;
+    this.chatByBusy = true;
+    try {
+      const r = await this.api('chat.list');
+      const rows = r.ok ? (r.body as { threads?: unknown } | undefined)?.threads : null;
+      if (!Array.isArray(rows)) return;
+      this.chatBy = unreadByOf(rows);
+    } catch {
+      return;
+    } finally {
+      this.chatByBusy = false;
+      this.chatByFor = want;
+    }
+    this.paintFriends();
   }
 
   /**
@@ -2186,6 +2225,14 @@ export class App {
             inMatch: () => !!this.session,
             onUnread: (n) => {
               this.chatUnread = n;
+              this.chatByFor = n;
+              this.paintFriends();
+            },
+            onUnreadBy: (by) => {
+              this.chatBy = by;
+              // the rows' dots never outnumber the total (a stale total would clear them on the next paint)
+              this.chatUnread = Math.max(this.chatUnread, Object.values(by).reduce((x, y) => x + y, 0));
+              this.chatByFor = this.chatUnread;
               this.paintFriends();
             },
             onBlocked: () => void this.refreshHomeFriends(true),
@@ -3622,8 +3669,9 @@ export class App {
   // ------------------------------------------------------------------------------------- store and offers
 
   private openStore(from: 'lobby' | 'results', tab?: StoreTab, hero?: HeroId): void {
-    // the app has no store (no prices): only a champion's detail opens there, for its Yarn and Champion Pick unlock
-    if (this.overlay || !(this.ent.snapshot().storeOpen || (hero && this.isApp()))) return;
+    // the app has no store with prices: there only its Yarn mode opens (CHAMPION-STORE.md §9: Yarn unlocks and Champion
+    // Picks, no price), on the Champions grid (Home's Yarn chip) or a champion's detail
+    if (this.overlay || !(this.ent.snapshot().storeOpen || ((hero || tab === 'champions') && this.isApp()))) return;
     this.offerEl?.close();
     this.offerEl = null;
     this.analytics.track('store_open', { from });

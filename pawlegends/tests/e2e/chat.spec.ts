@@ -142,11 +142,16 @@ test('two friends: a phrase and text DM, the unread badge, the reply in the open
   // no document scroll: only the message list scrolls
   expect(await chatA.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
 
-  // B: the friends panel's chat button shows the unread count and opens the newest unread thread with both messages
-  await expect(b.game.locator('[data-testid="home-friends-unread"]')).toHaveText('2', { timeout: limit(60_000) });
-  await b.game.locator('[data-testid="home-friends-chat"]').click();
+  // B: a red dot on Witty Biscuit's message button (founder Nov 21; no header chat button for a friend on the list), which
+  // opens that thread with both messages; the dot clears once it is read
+  const rowA = b.game.locator(`[data-testid="home-friend"][data-code="${CODE.A}"]`);
+  await expect(rowA.locator('[data-testid="home-friend-unread"]')).toHaveCount(1, { timeout: limit(60_000) });
+  await expect(rowA.locator('[data-testid="home-friend-msg"]')).toHaveAttribute('data-unread', '2');
+  await expect(b.game.locator('[data-testid="home-friends-chat"]')).toHaveCount(0);
+  await rowA.locator('[data-testid="home-friend-msg"]').click();
   const chatB = b.game.locator('[data-testid="chat-sheet"]');
   await expect(chatB.locator('.pl-chat-bubble')).toHaveText([PHRASES[0], 'see you at 7']);
+  await expect(rowA.locator('[data-testid="home-friend-unread"]')).toHaveCount(0, { timeout: limit(10_000) });
   expect(await chatB.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
 
   // A writes again while B's thread is open: B sees it within 5 s (the open-thread poll)
