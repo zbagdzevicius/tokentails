@@ -15,13 +15,18 @@
  *   and is kept as a floor until a read catches up, so a read that lags the write (a replica, a cache) never shows
  *   the old numbers again; a second read follows a few seconds later for the same reason;
  * - the page or app coming back to the foreground refreshes (at most every `VISIBLE_EVERY_MS`);
- * - reads never overlap: a refresh asked during one runs once more after it.
+ * - reads never overlap: a refresh asked during one runs once more after it;
+ * - a failed read (network, 429, 5xx) is retried after `STORE_RETRY_MS`, twice at most in a row, so one bad answer
+ *   right after a save does not leave the game on the old numbers until the next foreground.
  * No React and no timers of its own beyond `schedule`, so every rule is unit-tested.
  */
 import type { PawlegendsSaveSeason, PawlegendsStoreState } from "./bridge";
 
 /** The read after a save is repeated once after this long (a lagging read is caught up). */
 export const STORE_RECHECK_MS = 3_000;
+/** A failed read is tried again after this long (times its place in the run of failures), at most STORE_RETRIES times. */
+export const STORE_RETRY_MS = 5_000;
+export const STORE_RETRIES = 2;
 /** Foreground refreshes (tab visible, app resumed) at most this often. */
 export const VISIBLE_EVERY_MS = 10_000;
 
@@ -76,6 +81,8 @@ export class StoreSync {
   private busy: Promise<void> | null = null;
   private again = false;
   private lastRead = -Infinity;
+  /** Failed reads in a row (the retry budget). */
+  private fails = 0;
   private readonly schedule: (fn: () => void, ms: number) => void;
   private readonly now: () => number;
 
@@ -108,7 +115,13 @@ export class StoreSync {
       } catch {
         read = null;
       }
-      if (read) this.accept(read);
+      if (read) {
+        this.fails = 0;
+        this.accept(read);
+      } else if (this.fails < STORE_RETRIES) {
+        this.fails++;
+        this.schedule(() => void this.refresh(), STORE_RETRY_MS * this.fails);
+      } else this.fails = 0;
     })().finally(() => {
       this.busy = null;
       if (this.again) {

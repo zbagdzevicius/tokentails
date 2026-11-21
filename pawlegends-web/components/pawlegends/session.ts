@@ -31,6 +31,8 @@ export interface PawlegendsLiveAnswer {
   fastestWin: number | null;
   /** STORE-PASS.md §5: the Legends Pass Season XP this save paid (absent: an older backend). */
   season?: { gained: number; xp: number; tier: number; prevTier: number };
+  /** A party save over the daily cap (PARTY_DAILY_CAP saved party matches a UTC day): it counted and paid no XP or Yarn. */
+  why?: "daily";
 }
 
 const int = (value: unknown, max: number): number | null =>
@@ -50,6 +52,7 @@ export function liveAnswerOf(body: unknown): PawlegendsLiveAnswer | null {
     catnipCount: int(b.catnipCount, 100_000_000),
     fastestWin: fastest && fastest > 0 ? fastest : null,
     ...(season ? { season } : {}),
+    ...(b.why === "daily" ? { why: "daily" as const } : {}),
   };
 }
 

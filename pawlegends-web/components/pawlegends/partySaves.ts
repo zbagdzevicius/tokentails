@@ -26,6 +26,11 @@ export const PARTY_TICKETS_PER_MINUTE = 10;
  * backend since Nov 19, a 400 PAWLEGENDS_PARTY_ROOM before), so it is retried, the last try 45 s on.
  */
 export const PARTY_SAVE_RETRIES_MS = [2000, 6000, 18000, 45000] as const;
+/**
+ * The save status code the game hears for a party match saved over the daily cap (the answer's `why: 'daily'`): saved,
+ * counted, no Season XP or Yarn. The game's match row says so (founder, Nov 21: XP that did not move looked like a bug).
+ */
+export const PARTY_DAILY_CODE = "PAWLEGENDS_PARTY_DAILY";
 
 export interface PartyTicketsOptions {
   mint: () => Promise<PartyTicketResult>;
@@ -92,11 +97,12 @@ export class PartySaves {
     // an older backend answers a room it has not verified yet with a 400: retried like a server failure
     const early = r.status === 400 && r.code === ErrorCode.PAWLEGENDS_PARTY_ROOM;
     const outcome = early ? "backoff" : classifyPawlegendsSave(r);
+    const answer = r.ok ? liveAnswerOf(r.body) : null;
     const detail: PawlegendsSaveDetail = {
       outcome,
       httpStatus: r.status,
-      code: r.code ?? null,
-      answer: r.ok ? liveAnswerOf(r.body) : null,
+      code: r.code ?? (answer?.why === "daily" ? PARTY_DAILY_CODE : null),
+      answer,
     };
     if (outcome === "backoff" && tries < PARTY_SAVE_RETRIES_MS.length) {
       this.opts.onStatus(result.room, statusOf(outcome, r.status), detail);

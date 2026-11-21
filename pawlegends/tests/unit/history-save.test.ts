@@ -146,6 +146,8 @@ describe('the last match: its scoreboard and its save status on the device row',
     expect(saveLine({ st: 'rejected', code: 'PAWLEGENDS_SIM_VERSION' }).text).toMatch(/update/);
     expect(saveLine({ st: 'saved' }).text).toBe('');
     expect(saveLine({ st: 'saved', code: 'PAWLEGENDS_PARTY_AFK' }).text).toMatch(/bot played/);
+    // over the party daily cap (the host's PARTY_DAILY_CODE): saved and counted, no XP or Yarn, said on the row
+    expect(saveLine({ st: 'saved', code: 'PAWLEGENDS_PARTY_DAILY' })).toEqual({ text: 'Saved. No XP or Yarn: daily limit of 30 matches reached', tone: 'off' });
     expect(saveLine({ st: 'off', why: 'practice' }).text).toMatch(/Practice/);
   });
 

@@ -77,7 +77,10 @@ export function saveLine(save: HistoryEntry['save'], signedIn = true): { text: s
       return { text: 'Saving…', tone: 'busy' };
     case 'saved':
       // a party result the backend took without a match (a bot played most of it)
-      return save.code === 'PAWLEGENDS_PARTY_AFK' ? { text: 'Not saved: a bot played most of this match', tone: 'off' } : { text: '', tone: '' };
+      if (save.code === 'PAWLEGENDS_PARTY_AFK') return { text: 'Not saved: a bot played most of this match', tone: 'off' };
+      // over the daily cap (the host's PARTY_DAILY_CODE): the match counted, with no Season XP or Yarn
+      if (save.code === 'PAWLEGENDS_PARTY_DAILY') return { text: 'Saved. No XP or Yarn: daily limit of 30 matches reached', tone: 'off' };
+      return { text: '', tone: '' };
     case 'queued':
       return signedIn ? { text: "Couldn't save yet, retrying", tone: 'busy' } : { text: 'On this device. Sign in to keep it', tone: 'off' };
     case 'failed':

@@ -55,10 +55,14 @@ export interface HostConfig {
   store?: { items: string[]; season: unknown };
   /** STORE-PASS.md: answer `purchase-intent{sku}` for a store SKU with `purchase-result{sku, ok:true}` and this store state (a Stripe test-mode return). */
   storeGrants?: Record<string, { items: string[]; season: unknown }>;
-  /** STORE-PASS.md: answer a match's save with `save-result{season}` and then this store state (Season XP paid by /live). */
+  /**
+   * STORE-PASS.md: answer a match's save (`match-result`, or a party match's `party-result`, the main queue's) with
+   * `save-result{season}` and then this store state (Season XP and Yarn paid by /live; `champions` here wins over
+   * `champState`).
+   */
   seasonOnSave?: {
     season: { gained: number; xp: number; tier: number; prevTier: number };
-    store: { items: string[]; season: unknown };
+    store: { items: string[]; season: unknown; champions?: unknown };
     /** The `store` re-read lands this long after the `save-result` (a slow `GET /pawlegends/me`; default 0). */
     storeDelayMs?: number;
   };
@@ -119,7 +123,7 @@ function hostHtml(cfg: HostConfig): string {
       if (cfg.offer !== undefined) send('offer', { offer: cfg.offer });
       if (store || cfg.champState) send('store', withChamps(store || { items: [], season: null }));
     };
-    var withChamps = function (st) { return cfg.champState ? Object.assign({}, st, { champions: cfg.champState }) : st; };
+    var withChamps = function (st) { return cfg.champState && !st.champions ? Object.assign({}, st, { champions: cfg.champState }) : st; };
     var store = cfg.store || null;
     addEventListener('message', function (e) {
       if (e.source !== f.contentWindow) return;
@@ -143,7 +147,7 @@ function hostHtml(cfg: HostConfig): string {
         store = cfg.passClaim;
         setTimeout(function () { send('store', withChamps(store)); }, 50);
       }
-      if (m.type === 'match-result' && cfg.seasonOnSave) {
+      if ((m.type === 'match-result' || m.type === 'party-result') && cfg.seasonOnSave) {
         var so = cfg.seasonOnSave;
         setTimeout(function () {
           send('save-result', { matchId: m.matchId, status: 'saved', catnipPaid: 0, catnipTotal: null, fastestWin: null, season: so.season });

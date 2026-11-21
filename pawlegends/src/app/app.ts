@@ -984,6 +984,19 @@ export class App {
     return shownMatches(p.matches, accountState().signedIn ? loadCloud().account : null);
   }
 
+  /**
+   * Your Profile's account numbers, the same sources Home's chips read (one place per thing): the account level's
+   * matches, the server's Yarn balance (null until a server answered) and the champions owned.
+   */
+  private profileLive(): { matches: number; yarn: number | null; champs: { owned: number; total: number } } {
+    const c = this.champs();
+    return {
+      matches: this.levelMatches(),
+      yarn: c.server ? c.yarn.balance : null,
+      champs: { owned: ownedCount(c, this.isApp()), total: CHAMPION_IDS.length },
+    };
+  }
+
   /** The profile with the account level's matches (the mode unlocks read `matches`). */
   private levelProfile(p: Profile = loadProfile()): Profile {
     return { ...p, matches: this.levelMatches(p) };
@@ -1816,13 +1829,12 @@ export class App {
             title: p.wornTitle ?? (s.items.has('title.founder') ? 'title.founder' : null),
             frame: bestFrame(owned, p.wornFrame) ?? null,
             cc: flagHidden() ? null : myCountry(),
-            // the account level (one source with the boards, LEADERBOARDS.md)
-            matches: this.levelMatches(p),
+            // the account level (one source with the boards, LEADERBOARDS.md), the Yarn and the champions owned: the
+            // screen reads them again on every draw (profileLive), so a save landing while it is open shows
+            ...this.profileLive(),
             level: levelInfo(this.levelMatches(p)),
             pass: season && def ? { tier: season.tier, tiers: def.tiers, pct: (Math.max(0, season.xp) % def.xpPerTier) / def.xpPerTier, xp: season.xp, premium: season.premium !== 'none', name: def.name } : null,
-            yarn: this.champs().server ? this.champs().yarn.balance : null,
             mastery: loadMastery(),
-            champs: { owned: ownedCount(this.champs(), this.isApp()), total: CHAMPION_IDS.length },
             // one owned list: the entitlements plus the free unlocks (the Treat Track's titles, frames and coats)
             items: [...s.items, ...p.unlocks],
             rows: deviceProfileRows(),
@@ -1865,6 +1877,7 @@ export class App {
           // a row opens that match's detail; closing the history comes back to this profile's Matches tab
           openHistory: (f, match) => this.openHistory(f, match ?? null, () => this.openProfile(friend, 'matches')),
           openSettings: () => this.openSettings(),
+          ...(self ? { live: () => this.profileLive() } : {}),
           pass: () => {
             const sn = this.ent.snapshot().season;
             const df = sn ? currentSeason() : null;

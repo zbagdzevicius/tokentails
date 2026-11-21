@@ -110,6 +110,12 @@ export interface ProfileScreenOpts {
   items?(): Iterable<string>;
   /** The Pass as the app knows it now (the season can arrive after the screen opened). */
   pass?(): ProfileData['pass'];
+  /**
+   * Yours: the account numbers as the app knows them now (founder, Nov 21: "after a match profile stats / season xp /
+   * yarn / tier is not updated"): the Yarn balance, the account level's matches and the champions owned, read on every
+   * draw from the same source Home reads, so a save that lands while the screen is open shows here too.
+   */
+  live?(): { yarn: number | null; matches: number; champs: ProfileData['champs'] };
   onClose(): void;
   signIn(): void;
   /** The full match history sheet, on one match's detail when `match` is set (a server id or `local:<id>`). */
@@ -1018,8 +1024,20 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
 
   // ------------------------------------------------------------------------------------------------ render
   let scrollTop = 0;
+  /** Yours: the live account numbers (o.live) over the copy taken when the screen opened. */
+  const readLive = (): void => {
+    if (!self || !o.live) return;
+    const l = o.live();
+    d.yarn = l.yarn;
+    d.champs = l.champs;
+    if (l.matches !== d.matches || !d.level) {
+      d.matches = l.matches;
+      d.level = levelInfo(l.matches);
+    }
+  };
   const render = (): void => {
     if (disposed) return;
+    readLive();
     const active = doc.activeElement as HTMLElement | null;
     const focusName = active && root.contains(active) ? active.getAttribute('name') : null;
     const focusTab = active?.dataset.tab && root.contains(active) && active.classList.contains('cst-tab') ? active.dataset.tab : null;
@@ -1802,7 +1820,10 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   render();
   root.querySelector<HTMLElement>('.cst-back')?.focus({ preventScroll: true });
   void fetchAll();
-  /** A device row's save changed: merge the device rows again; once one is saved, ask the account for its list again. */
+  /**
+   * The app's state changed (a save landed, the store or the progress refreshed): the account numbers are read again
+   * (render reads o.live), the device rows merged again; once one is saved, the account's list is asked for again.
+   */
   const refresh = (): void => {
     if (disposed) return;
     if (self && o.deviceRows) {

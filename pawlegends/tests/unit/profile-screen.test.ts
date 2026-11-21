@@ -874,6 +874,28 @@ describe('profile screen', () => {
     expect(q('.pfx-pass').textContent).toContain('4 / 30');
   });
 
+  it('after a match (founder, Nov 21): Yarn, Lv and the Pass follow the app while the screen is open (one source with Home)', async () => {
+    const now = { yarn: 1192 as number | null, matches: 15, champs: { owned: 3, total: 12 } };
+    let pass = { tier: 2, tiers: 30, pct: 0.5, xp: 1134, premium: false, name: 'Season 1: First Paws' };
+    const t = open({ more: { live: () => ({ ...now }), pass: () => pass } });
+    await flush();
+    const yarn = () => q('.cst-wallet').textContent?.trim();
+    const lv = () => q('[data-testid="profile-level"]').textContent;
+    expect(yarn()).toBe('1,192');
+    expect(lv()).toBe(`Lv ${levelInfo(15).level}`);
+    expect(q('.pfx-pass').textContent).toContain('1,134 Season XP');
+    // a save lands: the store and the progress move; the app calls refresh (refreshMeta → overlay.refresh)
+    now.yarn = 1222;
+    now.matches = 40;
+    pass = { ...pass, tier: 3, xp: 1300 };
+    t.panel.refresh();
+    expect(yarn()).toBe('1,222');
+    expect(lv()).toBe(`Lv ${levelInfo(40).level}`);
+    expect(levelInfo(40).level).toBeGreaterThan(levelInfo(15).level);
+    expect(q('.pfx-pass').textContent).toContain('1,300 Season XP');
+    expect(q('.pfx-pass').textContent).toContain('3 / 30');
+  });
+
   it('Edit profile: no pink Change without the Yarn, labelled Icon / Border / Title groups, a title saves with the look', async () => {
     const t = open({ get: info({ name: 'Mira', nick: 'Mira', changes: 1, free: false, price: 1500, yarn: 922 }), items: ['title.store.goldpaw', 'frame.store.goldpaw'] });
     await flush();

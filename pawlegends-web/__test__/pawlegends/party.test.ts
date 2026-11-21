@@ -18,7 +18,7 @@ import {
   pawlegendsFrameSrc,
   withoutParty,
 } from "@/components/pawlegends/flags";
-import { PARTY_SAVE_RETRIES_MS, PARTY_TICKETS_PER_MINUTE, PartySaves, PartyTickets } from "@/components/pawlegends/partySaves";
+import { PARTY_DAILY_CODE, PARTY_SAVE_RETRIES_MS, PARTY_TICKETS_PER_MINUTE, PartySaves, PartyTickets } from "@/components/pawlegends/partySaves";
 
 const ORIGIN = "https://tokentails.com";
 const TICKET = `eyJhdWQiOiJwbC1wYXJ0eSIsInYiOjF9.${"A".repeat(43)}`;
@@ -226,5 +226,15 @@ describe("party saves (P9, §6)", () => {
     expect(await run({ ok: false, status: 409, code: "PAWLEGENDS_PARTY_AFK" })).toBe("saved");
     expect(await run({ ok: false, status: 400, code: "PAWLEGENDS_REPLAY_INVALID" })).toBe("rejected");
     expect(await run({ ok: false, status: 403, code: "PAWLEGENDS_PARTY_SLOT" })).toBe("rejected");
+  });
+
+  it("a save over the daily cap (why: daily) is saved with PARTY_DAILY_CODE, so the game can say why no XP moved", async () => {
+    const seen: Array<[string, string | null]> = [];
+    const body = { ...ok.body, why: "daily", season: { gained: 0, xp: 1134, tier: 2, prevTier: 2 } };
+    await new PartySaves({ save: async () => ({ ...ok, body }) as never, onStatus: (_i, st, d) => seen.push([st, d.code]) }).submit(RESULT);
+    expect(seen.at(-1)).toEqual(["saved", PARTY_DAILY_CODE]);
+    const plain: Array<string | null> = [];
+    await new PartySaves({ save: async () => ok as never, onStatus: (_i, _st, d) => plain.push(d.code) }).submit(RESULT);
+    expect(plain.at(-1)).toBeNull();
   });
 });
