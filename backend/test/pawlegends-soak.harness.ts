@@ -77,9 +77,15 @@ class Games {
     async create(row: Doc) {
         if (row.replayDigest && this.rows.some(r => r.replayDigest === row.replayDigest))
             throw Object.assign(new Error('E11000 duplicate key'), { code: 11000 });
-        const stored = { ...row, _id: new Types.ObjectId() };
+        const stored = { createdAt: new Date(), ...row, _id: new Types.ObjectId() };
         this.rows.push(stored);
         return stored;
+    }
+    /** The party writer's daily cap: an account's party rows since `createdAt.$gte`. */
+    async count(q: Doc) {
+        return this.rows.filter(
+            r => r.party === q.party && String(r.user) === String(q.user) && r.createdAt >= q.createdAt.$gte
+        ).length;
     }
 }
 

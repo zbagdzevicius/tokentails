@@ -27,7 +27,7 @@ Why it scales: a full party is the best experience and the hardest to organise, 
   and was not flown by a bot for more than half the match (the same AFK rule that gates the save). Only verified
   party matches pay (pure bot practice and Practice mode pay no Season XP at all). A room made before this release has
   no `premade` and pays no bonus.
-- **Caps.** The party writer's daily cap (30 scored party matches a UTC day) counts matches, not XP: a match over it
+- **Caps.** The party writer's daily cap (30 saved party matches a UTC day, counted from the party Game rows) counts matches, not XP: a match over it
   pays 0 Season XP, bonus included. The bonus never touches the solo gates (solo saves are never party matches). No
   XP cap needed raising.
 

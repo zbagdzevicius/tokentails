@@ -199,14 +199,34 @@ describe('pawlegends party live (N8)', () => {
 
     it(`the ${PARTY_DAILY_CAP + 1}st party match of the day counts but pays no catnip`, async () => {
         const s = setup();
-        for (let i = 0; i < PARTY_DAILY_CAP; i++) {
+        // rooms that ended today but were never saved (AFK, unverified, a closed tab) do not count
+        for (let i = 0; i < PARTY_DAILY_CAP * 2; i++) {
             const old = room({ _id: `old${i}`, updatedAt: new Date('2026-11-12T08:00:00Z') });
             old.occupants[0].accountId = s.a;
             s.store.rooms.set(old._id, old);
         }
-        const r = await s.save(s.a, s.body(0));
+        // nor do yesterday's saved ones, or another account's
+        const party = (user: unknown, at: string) => ({
+            type: 'PAWLEGENDS',
+            party: true,
+            user,
+            createdAt: new Date(at),
+        });
+        for (let i = 0; i < PARTY_DAILY_CAP; i++) {
+            s.games.rows.push(party(s.users.get(s.a)._id, '2026-11-11T20:00:00Z'));
+            s.games.rows.push(party(s.users.get(s.b)._id, '2026-11-12T08:00:00Z'));
+        }
+        expect(await s.save(s.a, s.body(0))).not.toHaveProperty('why');
+        expect(s.games.rows.find((g: any) => g.replayDigest === partyDigest('room1', 0))).toMatchObject({
+            party: true,
+        });
+        // the saved party matches of today count: 30 saved, the next one pays nothing
+        const t = setup(room({ _id: 'room2' }));
+        for (let i = 0; i < PARTY_DAILY_CAP; i++)
+            t.games.rows.push(party(t.users.get(t.a)._id, '2026-11-12T08:00:00Z'));
+        const r = await t.save(t.a, t.body(0));
         expect(r).toMatchObject({ catnipPaid: 0, why: 'daily' });
-        expect(s.users.get(s.a).pawlegendsMatches.normal).toBe(1);
+        expect(t.users.get(t.a).pawlegendsMatches.normal).toBe(1);
     });
 
     it('the /live DTO picks the party shape for v: 2 and the solo replay shape otherwise', () => {

@@ -52,8 +52,8 @@ import { lossShareOf, slotGrade, type Grade, type GradeStats } from './ranked/gr
  * hash equal the verdict; the caller holds that slot; the AFK rule (drop + away + afk pilot ticks <= 50%; late, desync,
  * restore and open never count); one save per room and slot (digest sha256('party:room:slot') in the unique digest
  * index), and one per account per room (an account seated twice saves once). Catnip follows the solo first-win rule of the difficulty, one tier lower when an open seat stayed empty past
- * tick 1,800 (S5); never a fastest win from a party (v1); at most 30 scored party matches per account per UTC day
- * (over it the match counts, no catnip).
+ * tick 1,800 (S5); never a fastest win from a party (v1); at most 30 saved party matches per account per UTC day pay
+ * (over it the match counts, no catnip, Season XP or Yarn; counted from the account's party Game rows).
  *
  * Casual PvP (V16.md §4.5, a room whose config has `mode: 'pvp'`): the same DTO. The sim must be >= PVP_SINCE; the
  * verdict's `outcome` is team 0's view, so the posted `outcome` must equal the slot's own view (`winner` against the
@@ -64,13 +64,11 @@ import { lossShareOf, slotGrade, type Grade, type GradeStats } from './ranked/gr
 export const PARTY_DAILY_CAP = 30;
 
 export interface IPartyLiveDeps
-    extends Pick<
-        IPawlegendsLiveDeps,
-        'users' | 'games' | 'now' | 'logger' | 'season' | 'growth' | 'rewards' | 'history'
-    > {
+    extends Pick<IPawlegendsLiveDeps, 'users' | 'now' | 'logger' | 'season' | 'growth' | 'rewards' | 'history'> {
+    /** The Game rows (the duplicate guard, the row, and the daily cap's count of saved party matches). */
+    games: IPawlegendsLiveDeps['games'] & { count(q: Record<string, unknown>): Promise<number> };
     rooms: {
         get(id: string): Promise<StoredRoom | null>;
-        countEnded(accountId: string, since: Date): Promise<number>;
     };
     /**
      * Quick Play (M1A-IMPL.md §4.2): the mm room records and the hidden rating model. This file is the ONE place that
@@ -147,6 +145,14 @@ function partySince(simVersion: number): number | null {
 }
 
 const utcDayStart = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+
+/** The account's saved party matches since `since` (their Game rows carry `party: true`). */
+async function savedPartyToday(deps: IPartyLiveDeps, user: unknown, since: Date): Promise<number> {
+    return (
+        Number(await deps.games.count({ user, type: GameType.PAWLEGENDS, party: true, createdAt: { $gte: since } })) ||
+        0
+    );
+}
 
 export async function savePawlegendsPartyMatch(
     deps: IPartyLiveDeps,
@@ -228,7 +234,9 @@ export async function savePawlegendsPartyMatch(
     // S5: an open seat nobody claimed by tick 1,800 pays one tier lower (the lowest tier stays)
     const catnipIndex = room.openUnclaimedAt1800 && !pvp ? Math.max(0, index - 1) : index;
     const catnipDifficulty = PAWLEGENDS_LEVELS[catnipIndex];
-    const daily = (await deps.rooms.countEnded(String(userId), utcDayStart(now))) > PARTY_DAILY_CAP;
+    // the daily cap counts this account's SAVED party matches today (a Game row each), never the rooms it sat in: a room
+    // that was not saved (AFK, unverified, a closed tab) used to count too, so a busy tester hit 0 XP and Yarn early
+    const daily = (await savedPartyToday(deps, user._id, utcDayStart(now))) >= PARTY_DAILY_CAP;
     const won = slotOutcome === 'won';
     const cap = PAWLEGENDS_LEVEL_CAPS[catnipIndex] ?? 0;
     for (const field of [PAWLEGENDS_CATNIP_FIELD, PAWLEGENDS_MATCHES_FIELD]) {
@@ -252,7 +260,7 @@ export async function savePawlegendsPartyMatch(
         replayDigest: digest,
     };
     try {
-        await deps.games.create({ ...row, cat: user.cat, user: user._id });
+        await deps.games.create({ ...row, party: true, cat: user.cat, user: user._id });
     } catch (error) {
         if (claimedFrom !== null) await deps.users.update(userId, { $set: { [catnipPath]: claimedFrom } });
         if ((error as { code?: unknown })?.code === 11000) throw pawlegendsDuplicate();

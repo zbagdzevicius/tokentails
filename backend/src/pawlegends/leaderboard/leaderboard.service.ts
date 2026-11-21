@@ -34,8 +34,13 @@ import { ownSideWins, sideCounterIds, winningSide, type Side, type SideRow } fro
  *   players' account levels. A caller who hid their flag, or whose country is unknown, gets `local` saying why.
  * - `sides`: Cats vs Dogs wins this season, all time and this week (and last week, for the trend), plus, signed in,
  *   the caller's own wins this season by the species of their champion.
- * Every public answer is cached 60 s per key. The rows grow through leaderboard-live.ts; a signed-in board read heals
- * the caller's own Level row (a sign-in, a merge or a lifted exclusion shows at once).
+ * Every public answer is cached per instance, keyed by the shared board version (a row in `pawlegendssidewins`): a
+ * Level row change (a saved match, on any instance) raises it, and every instance re-reads it at most every
+ * BOARD_VERSION_READ_MS, so a saved match shows on every board within seconds (founder Nov 21: "level / match is not
+ * updated in leaderboards"). A cached answer is rebuilt at most every BOARD_REBUILD_MIN_MS however often the version
+ * moves, and never kept past LEADERBOARD_CACHE_MS. The rows grow through leaderboard-live.ts; a signed-in board read
+ * heals the caller's own Level row (a sign-in, a merge or a lifted exclusion shows at once) and lays the caller's fresh
+ * row (level and matches) over the cached list and the Country "me", so the caller's own numbers are never stale.
  *
  * The repair (`backfill`, started ~60 s after boot), in versioned parts; bumping a part's key re-runs it on the next
  * boot (BACKFILL_KEYS):
@@ -62,8 +67,14 @@ export const COUNTRY_SCAN_MAX = 20_000;
 /** Top countries: countries listed, and Level rows read at most to build them. */
 export const COUNTRIES_TOP = 50;
 export const COUNTRIES_SCAN_MAX = 50_000;
-/** Public answers live this long. */
+/** Public answers live this long at most (when no save moved the board version). */
 export const LEADERBOARD_CACHE_MS = 60_000;
+/** Each instance reads the shared board version at most this often. */
+export const BOARD_VERSION_READ_MS = 2_000;
+/** A cached answer is rebuilt at most this often, however often the board version moves. */
+export const BOARD_REBUILD_MIN_MS = 3_000;
+/** The shared board version's row (in `pawlegendssidewins`; the repair's counters never match it). */
+export const BOARD_VERSION_ID = 'boards:version';
 /** The repair: rows per batch, and how long a run holds its lock. */
 export const BACKFILL_BATCH = 500;
 export const BACKFILL_LOCK_MS = 30 * 60_000;
@@ -146,6 +157,8 @@ interface LevelDoc {
 
 interface Cached<T> {
     atMs: number;
+    /** The board version it was built under. */
+    v: number;
     value: T;
 }
 
@@ -188,11 +201,18 @@ export function rankCountries(
         .map(([cc, c], i) => ({ rank: i + 1, cc, players: c.players, levels: c.levels }));
 }
 
+/** The caller's row on a cached page: marked, its level and matches from the caller's fresh Level row. Pure. */
+export function overlayOwn(row: LevelRowView, mine: { m: number } | null): LevelRowView {
+    return mine ? { ...row, value: levelOf(mine.m), m: mine.m, me: true } : { ...row, me: true };
+}
+
 @Injectable()
 export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModuleDestroy {
     private readonly cache = new Map<string, Cached<unknown>>();
     private readonly log = new Logger('PawlegendsLeaderboard');
     private timer: ReturnType<typeof setTimeout> | null = null;
+    /** The last read of the shared board version (BOARD_VERSION_ID). */
+    private version = { v: 0, readAtMs: Number.NEGATIVE_INFINITY };
 
     constructor(
         @InjectModel(PawlegendsLevel.name) private readonly levels: AnyModel,
@@ -253,6 +273,7 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         const at = this.now();
         if (row) {
             await this.levels.updateOne({ _id: accountId, m: row.m }, { $set: { m, ...(m > row.m ? { at } : {}) } });
+            await this.bumpVersion();
             return true;
         }
         try {
@@ -260,7 +281,34 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         } catch (e) {
             if (!isDup(e)) throw e;
         }
+        await this.bumpVersion();
         return true;
+    }
+
+    /**
+     * A Level row changed: raise the shared board version, so every instance drops its cached boards within
+     * BOARD_VERSION_READ_MS. This instance re-reads it at once. A failed write drops this instance's cache instead.
+     */
+    private async bumpVersion(): Promise<void> {
+        this.version.readAtMs = Number.NEGATIVE_INFINITY;
+        try {
+            await this.sideWins.updateOne({ _id: BOARD_VERSION_ID }, { $inc: { v: 1 } }, { upsert: true });
+        } catch {
+            this.cache.clear();
+        }
+    }
+
+    /** The shared board version, read at most every BOARD_VERSION_READ_MS; a failed read keeps the last one. */
+    private async boardVersion(): Promise<number> {
+        const now = this.now().getTime();
+        if (now - this.version.readAtMs < BOARD_VERSION_READ_MS) return this.version.v;
+        try {
+            const doc = (await this.sideWins.findById(BOARD_VERSION_ID).lean()) as { v?: unknown } | null;
+            this.version = { v: Math.max(0, Number(doc?.v) || 0), readAtMs: now };
+        } catch {
+            this.version.readAtMs = now;
+        }
+        return this.version.v;
     }
 
     /**
@@ -331,7 +379,10 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         await part('legacy', () => this.freezeLegacy());
         await part('levels', () => this.repairLevels());
         await part('sides', () => this.repairSides());
-        if (out.levels !== 'skipped' || out.sides !== 'skipped') this.cache.clear();
+        if (out.levels !== 'skipped' || out.sides !== 'skipped') {
+            this.cache.clear();
+            await this.bumpVersion();
+        }
         return out;
     }
 
@@ -526,12 +577,20 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
     // -----------------------------------------------------------------------------------------------------------
     // reads
 
+    /**
+     * A cached answer: kept while the board version is unchanged (up to LEADERBOARD_CACHE_MS), and for at least
+     * BOARD_REBUILD_MIN_MS whatever the version (a busy minute rebuilds a board at most every few seconds).
+     */
     private async cached<T>(key: string, build: () => Promise<T>): Promise<T> {
         const now = this.now().getTime();
+        const v = await this.boardVersion();
         const hit = this.cache.get(key) as Cached<T> | undefined;
-        if (hit && now - hit.atMs < LEADERBOARD_CACHE_MS) return hit.value;
+        if (hit) {
+            const age = now - hit.atMs;
+            if (age < BOARD_REBUILD_MIN_MS || (hit.v === v && age < LEADERBOARD_CACHE_MS)) return hit.value;
+        }
         const value = await build();
-        this.cache.set(key, { atMs: now, value });
+        this.cache.set(key, { atMs: now, v, value });
         if (this.cache.size > 400) for (const k of [...this.cache.keys()].slice(0, 100)) this.cache.delete(k);
         return value;
     }
@@ -764,8 +823,8 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
             rows: out.rows,
         };
         if (!caller) return answer;
-        answer.rows = out.rows.map((r, i) => (out.accs[i] === caller ? { ...r, me: true } : r));
         const mine = await this.ownRow(caller);
+        answer.rows = out.rows.map((r, i) => (out.accs[i] === caller ? overlayOwn(r, mine) : r));
         const me: LevelMe | null = mine
             ? { rank: await this.exactRank(mine, order), value: levelOf(mine.m), m: mine.m }
             : null;
@@ -800,14 +859,15 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         const { rows: full, full: exact } = await this.countryOrder(cc);
         const order = full.slice(0, LEVEL_TOP);
         const out = await this.page(`country|${cc}`, order, pageIn);
-        const rows = out.rows.map((r, i) => (out.accs[i] === caller ? { ...r, me: true } : r));
+        // the caller's own row read fresh (the cached order may be a few seconds old)
+        const mine = await this.ownRow(caller).catch(() => null);
+        const rows = out.rows.map((r, i) => (out.accs[i] === caller ? overlayOwn(r, mine) : r));
         let me: LevelMe | null = null;
         const at = full.findIndex(r => r._id === caller);
-        if (at >= 0) me = { rank: at + 1, value: levelOf(full[at].m), m: full[at].m };
-        else if (!exact) {
-            const mine = await this.ownRow(caller);
-            if (mine) me = { rank: LEVEL_TOP + 1, value: levelOf(mine.m), m: mine.m, over: true };
-        }
+        if (at >= 0) {
+            const m = mine?.m ?? full[at].m;
+            me = { rank: at + 1, value: levelOf(m), m };
+        } else if (!exact && mine) me = { rank: LEVEL_TOP + 1, value: levelOf(mine.m), m: mine.m, over: true };
         return {
             period: 'all',
             page: Math.min(pageIn, out.pages - 1),

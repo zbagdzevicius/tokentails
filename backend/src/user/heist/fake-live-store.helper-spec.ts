@@ -186,10 +186,26 @@ export class FakeGames {
                 code: 11000,
             });
         }
-        const stored = { ...row, _id: new Types.ObjectId() };
+        // Mongoose's `timestamps`: a row stored now (a spec may set its own `createdAt`)
+        const stored = { createdAt: new Date(), ...row, _id: new Types.ObjectId() };
         this.rows.push(stored);
         return stored;
     });
+
+    /** `countDocuments`: equality (ObjectIds by value) and `{ $gte }` on dates. */
+    count = jest.fn(
+        async (q: Doc) =>
+            this.rows.filter(row =>
+                Object.entries(q).every(([key, value]) => {
+                    if (value && typeof value === 'object' && '$gte' in (value as object))
+                        return (
+                            row[key] instanceof Date && row[key].getTime() >= (value as { $gte: Date }).$gte.getTime()
+                        );
+                    if (value instanceof Types.ObjectId) return String(row[key]) === String(value);
+                    return matchesValue(row[key], value);
+                })
+            ).length
+    );
 
     delete = jest.fn(async (id: string) => {
         const index = this.rows.findIndex(row => String(row._id) === String(id));

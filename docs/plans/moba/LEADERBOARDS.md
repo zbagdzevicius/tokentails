@@ -21,7 +21,12 @@ fires when it opens, `board_view {kind}` per tab (and `countries` / `country` wh
 Global and My country: the top 100, 20 a page, ordered by the account level's matches (the level is `levelOf(m)`),
 then the earliest to reach that count, then id. My row is marked `me` on the page, else returned as `me` with my exact
 rank (My country: exact for any country with up to 20,000 shown flags; only a bigger one answers `over`, "100+").
-Public answers are cached 60 s per key.
+Public answers are cached per backend instance, keyed by a shared board version (`pawlegendssidewins` row
+`boards:version`): every Level row change (a saved match on any instance) raises it, each instance re-reads it at most
+every 2 s and rebuilds an answer at most every 3 s, so a saved match shows on Global, My country and Top countries
+within about 5 s (founder, Nov 21: "level / match is not updated in leaderboards"; it used to wait up to 60 s per
+instance). With no save an answer still lives 60 s. A signed-in read lays the caller's fresh Level row (level and
+matches) over the cached list row and the Country `me`, so my own numbers are never stale.
 
 Top countries: a country's score is the **sum of the account levels** of its players on the Global board who show its
 flag (ties: more players, then the country code). It rewards both many players and high levels, uses the same level

@@ -208,10 +208,19 @@ describe('party XP bonus: the /live party writer', () => {
             ...over,
         };
     }
-    function setup(r: StoredRoom, ended = 1) {
+    function setup(r: StoredRoom, savedToday = 0) {
         const users = new FakeUsers();
         const games = new FakeGames();
         const ids = { A: users.add({}), B: users.add({}) } as Record<string, string>;
+        // A's party matches already saved today (the daily cap counts these Game rows)
+        for (let i = 0; i < savedToday; i++)
+            games.rows.push({
+                _id: `g${i}`,
+                type: 'PAWLEGENDS',
+                party: true,
+                user: users.get(ids.A)._id,
+                createdAt: new Date('2026-11-12T08:00:00Z'),
+            });
         for (const o of r.occupants) o.accountId = ids[o.accountId ?? ''] ?? o.accountId;
         const store = new MemoryRoomStore();
         store.rooms.set(r._id, r);
@@ -219,7 +228,7 @@ describe('party XP bonus: the /live party writer', () => {
         const deps = {
             users: users as any,
             games: games as any,
-            rooms: { get: (id: string) => store.get(id), countEnded: async () => ended },
+            rooms: { get: (id: string) => store.get(id) },
             season: {
                 addXp: async (_id: string, m: SeasonXpMatch) => {
                     seen.push(m);
@@ -260,7 +269,7 @@ describe('party XP bonus: the /live party writer', () => {
     });
 
     it('over the daily cap the match is capped (Season XP pays 0, so no bonus either)', async () => {
-        const s = setup(room(), PARTY_DAILY_CAP + 1);
+        const s = setup(room(), PARTY_DAILY_CAP);
         await s.save('A', 0);
         expect(s.seen[0]).toMatchObject({ capped: true, partyMates: 1 });
     });

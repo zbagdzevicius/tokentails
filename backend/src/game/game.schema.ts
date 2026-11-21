@@ -109,6 +109,10 @@ export class Game extends CommonSchema {
     /** BAD_CAT rows only: the server replay's stamp (`perfect`, `clean`, `caught`). */
     @Prop({ type: String })
     stamp?: string;
+
+    /** PAWLEGENDS party rows only (pawlegends-party-live.ts): the party writer's daily cap counts them. */
+    @Prop({ type: Boolean })
+    party?: boolean;
 }
 
 export type GameDocument = Game & Document;

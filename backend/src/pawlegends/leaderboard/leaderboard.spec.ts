@@ -1,6 +1,7 @@
 import { CURRENT_SEASON_ID } from '../pawlegends-catalog';
 import { MatchHistoryCore, type HistoryPeople, type HistoryStore } from '../history/history.service';
 import { isoWeek } from '../ranked/boards';
+import { levelOf } from '../mode-unlocks';
 import { SocialMemoryModel, TestClock } from '../social/social-model.helper-spec';
 import { applyLevelSync, applyMatchSides, setLeaderboardSink } from './leaderboard-live';
 import { BACKFILL_KEYS, LEVEL_PAGE, LEVEL_TOP, LeaderboardService, rankCountries } from './leaderboard.service';
@@ -124,9 +125,8 @@ describe('Level board', () => {
             clock.advance(1000);
             await applyLevelSync('A');
             expect(m.levels.docs[0]).toMatchObject({ m: 5, at: clock.now() });
-            // cached: the board shows the new count after a minute
-            expect((await svc.levelBoard(0, null)).rows[0].m).toBe(3);
-            clock.advance(60_000);
+            // the save raised the board version: the board shows the new count within seconds, not after a minute
+            clock.advance(3_000);
             expect((await svc.levelBoard(0, null)).rows[0].m).toBe(5);
             // a wrong (too high) count is corrected, its `at` kept
             const at = m.levels.docs[0].at;
@@ -627,5 +627,102 @@ describe('routes (GET /pawlegends/boards/:kind[/me])', () => {
             'sides:A',
             'ranked:global',
         ]);
+    });
+});
+
+describe('Boards after a saved match (founder Nov 21: "level / match is not updated in leaderboards")', () => {
+    const t = new Date(Date.UTC(2026, 10, 1));
+    const second = (h: ReturnType<typeof harness>) =>
+        new LeaderboardService(
+            h.m.levels,
+            h.m.sideWins,
+            h.m.sideMatches,
+            h.m.users,
+            h.m.history,
+            h.m.stats,
+            h.m.sanctions,
+            h.m.social,
+            h.m.flags,
+            undefined,
+            undefined,
+            h.m.progress,
+            h.clock
+        );
+    const setup = () =>
+        harness({
+            users: [user('A', 3), user('B', 10)],
+            levels: [
+                { _id: 'A', m: 3, at: t },
+                { _id: 'B', m: 10, at: t },
+            ],
+            flags: [
+                { _id: 'A', cc: 'LT', off: false, at: t },
+                { _id: 'B', cc: 'LT', off: false, at: t },
+            ],
+        });
+
+    it("the caller's own row (list and me) shows the new count at once on Global and Country", async () => {
+        const h = setup();
+        setLeaderboardSink(h.svc);
+        try {
+            // warm every cache
+            await h.svc.levelBoard(0, 'A');
+            await h.svc.countryBoard(0, 'A');
+            h.m.users.docs[0].pawlegendsMatches = { easy: 4 };
+            await applyLevelSync('A');
+            // no clock advance at all
+            const g = await h.svc.levelBoard(0, 'A');
+            expect(g.rows.find(r => r.me)).toMatchObject({ m: 4 });
+            expect(g.me).toMatchObject({ m: 4 });
+            const c = await h.svc.countryBoard(0, 'A');
+            expect(c.rows.find(r => r.me)).toMatchObject({ m: 4 });
+            expect(c.me).toMatchObject({ m: 4 });
+        } finally {
+            setLeaderboardSink(null);
+        }
+    });
+
+    it('every board and every instance shows the new count within seconds (the shared board version)', async () => {
+        const h = setup();
+        const other = second(h);
+        setLeaderboardSink(h.svc);
+        try {
+            // the other instance caches the boards first
+            expect((await other.levelBoard(0, null)).rows.map(r => r.m)).toEqual([10, 3]);
+            expect((await other.levelBoard(0, 'B')).rows.map(r => r.m)).toEqual([10, 3]);
+            expect((await other.countriesBoard()).countries.rows[0].levels).toBe(levelOf(10) + levelOf(3));
+            // A saves 20 more matches on this instance: A passes B
+            h.m.users.docs[0].pawlegendsMatches = { easy: 23 };
+            h.clock.advance(1000);
+            await applyLevelSync('A');
+            // still inside the rebuild floor: the old answer is kept
+            expect((await other.levelBoard(0, null)).rows.map(r => r.m)).toEqual([10, 3]);
+            h.clock.advance(3_000);
+            const pub = await other.levelBoard(0, null);
+            expect(pub.rows.map(r => [r.name, r.m])).toEqual([
+                ['NickA', 23],
+                ['NickB', 10],
+            ]);
+            const b = await other.levelBoard(0, 'B');
+            expect(b.rows.map(r => r.m)).toEqual([23, 10]);
+            expect(b.me).toMatchObject({ rank: 2, m: 10 });
+            const cb = await other.countryBoard(0, 'B');
+            expect(cb.rows.map(r => r.m)).toEqual([23, 10]);
+            expect(cb.me).toMatchObject({ rank: 2, m: 10 });
+            expect((await other.countriesBoard()).countries.rows[0].levels).toBe(levelOf(23) + levelOf(10));
+        } finally {
+            setLeaderboardSink(null);
+        }
+    });
+
+    it('with no save, an answer is still kept for a minute (the version did not move)', async () => {
+        const h = setup();
+        await h.svc.levelBoard(0, null);
+        // a row changed behind the boards' back (no sync): the cache keeps the old one until it lapses
+        h.m.levels.docs[0].m = 50;
+        h.clock.advance(30_000);
+        expect((await h.svc.levelBoard(0, null)).rows.map(r => r.m)).toEqual([10, 3]);
+        h.clock.advance(31_000);
+        expect((await h.svc.levelBoard(0, null)).rows.map(r => r.m)).toEqual([50, 10]);
     });
 });

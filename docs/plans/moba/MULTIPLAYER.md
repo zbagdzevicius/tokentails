@@ -520,7 +520,7 @@ Phases: `lobby → pick → loading → match → results → (lobby | pick)`. T
    - Catnip and match count come from the existing code applied to `stats[slot]` of the verified run.
    - **Fastest win is never credited from party matches** in v1 (3 buffed humans beat solo times; a separate party record is later).
    - **Open seats (S5):** if any open seat was never claimed by a human by tick 1,800, catnip is computed at the next lower difficulty tier (the lowest tier stays).
-   - At most **30 scored party matches per account per UTC day** (counted from `PawlegendsRoom`); over it, the match counts but gives no catnip (`why:'daily'`).
+   - At most **30 scored party matches per account per UTC day** (counted from the account's saved party Game rows, `party: true`, since Nov 21; rooms that ended without a save no longer count); over it, the match counts but gives no catnip, Season XP or Yarn (`why:'daily'`; the hosts tell the game `PAWLEGENDS_PARTY_DAILY` and the match row says so).
 5. New error codes in `backend/src/shared-contracts/errors.ts` and every client copy listed in `docs/DEVELOPMENT.md`: `PAWLEGENDS_PARTY_ROOM`, `PAWLEGENDS_PARTY_SLOT`, `PAWLEGENDS_PARTY_AFK`, `PAWLEGENDS_PARTY_TICKET_UNAVAILABLE`.
 6. **The relay never writes to user or game collections.** `party-relay.no-score.spec.ts` asserts that no relay provider has `UserRepository` or `GameRepository` injected.
 7. Save status is shown only to its owner: "Saved +12 catnip", "Saved +12 catnip (guest). Sign in to keep it forever", "Sign in on tokentails.com to keep rewards", "No rewards: a bot played most of this match". Peers see nothing.

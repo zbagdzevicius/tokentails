@@ -31,7 +31,8 @@ PawlegendsLevelSchema.index({ m: -1, at: 1, _id: 1 });
 
 /**
  * Cats vs Dogs counters: `_id` = `all`, `season:<id>` or `week:<isoWeek>` with `cat`/`dog` wins; the backfill's own
- * marker rows (`backfill:*`) live here too.
+ * marker rows (`backfill:*`) and the shared board version (`boards:version`, `v`: raised by every Level row change, read
+ * by every instance's board cache) live here too.
  */
 @Schema({ collection: SIDE_WINS_COLLECTION, versionKey: false, strict: false })
 export class PawlegendsSideWins {

@@ -235,8 +235,6 @@ export interface RoomStore {
     takeParty(id: string, from: string, owner: string, now: Date): Promise<StoredParty | null>;
     /** Mark a party ended (only while `owner` still holds it). */
     endParty(id: string, owner: string, now: Date): Promise<void>;
-    /** Scored party matches of an account since `since` (the daily cap, §6). */
-    countEnded(accountId: string, since: Date): Promise<number>;
     saveParty(p: StoredParty): Promise<void>;
     getParty(id: string): Promise<StoredParty | null>;
     deleteParty(id: string): Promise<void>;
@@ -442,14 +440,6 @@ export class MemoryRoomStore implements RoomStore {
         p.ended = true;
         p.handoff = false;
         p.updatedAt = now;
-    }
-
-    async countEnded(accountId: string, since: Date): Promise<number> {
-        let n = 0;
-        for (const r of this.rooms.values()) {
-            if (r.status === 'ended' && r.updatedAt >= since && r.occupants.some(o => o.accountId === accountId)) n++;
-        }
-        return n;
     }
 
     async saveParty(p: StoredParty): Promise<void> {
@@ -933,10 +923,6 @@ export class MongoRoomStore implements RoomStore {
             { _id: id, owner },
             { $set: { ended: true, handoff: false, updatedAt: now } }
         );
-    }
-
-    async countEnded(accountId: string, since: Date): Promise<number> {
-        return this.r.countDocuments({ status: 'ended', 'occupants.accountId': accountId, updatedAt: { $gte: since } });
     }
 
     async saveParty(p: StoredParty): Promise<void> {
