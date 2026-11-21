@@ -172,18 +172,33 @@ test('Lv 9 in the embed: no Ranked; a Lv 6 player whose ranked card shows games 
   }
 });
 
-for (const [w, h] of [
-  [667, 375],
-  [844, 390],
-  [1280, 720],
-  [1440, 900],
-  [390, 844],
+// Founder Nov 21 ("practise and party and ranked buttons needs to be smaller"): each pill is a small face (<= 0.4 of
+// PLAY's height, about 0.3); on touch the button stays a 44 px target around that face (its ::before draws it).
+for (const [w, h, touch] of [
+  [667, 375, true],
+  [844, 390, true],
+  [1280, 720, false],
+  [1440, 900, false],
+  [1600, 900, false],
+  [1920, 1080, false],
+  [390, 844, true],
 ] as const) {
-  test(`the PLAY cluster fits at ${w}x${h}: 44 px targets, inside the screen, clear of the nav and of each other`, async ({ context, page, baseURL }, info) => {
+  test(`the PLAY cluster fits at ${w}x${h}${touch ? ' (touch)' : ''}: small pills, PLAY dominates, inside the screen, clear of the nav and of each other`, async ({ browser, baseURL }, info) => {
     test.skip(info.project.name !== 'desktop', 'the sizes are set per test');
     test.setTimeout(limit(120_000));
-    await page.setViewportSize({ width: w, height: h });
-    await embed(context, baseURL!, 25);
+    const context = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch });
+    try {
+      const page = await context.newPage();
+      await cluster(context, page, baseURL!, touch);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+async function cluster(context: BrowserContext, page: Page, baseURL: string, touch: boolean): Promise<void> {
+  {
+    await embed(context, baseURL, 25);
     const game = await openHost(page);
     await game.waitForSelector('html[data-screen="title"] .pl-home');
     await expect(game.locator('[data-testid="home-ranked"]')).toBeVisible({ timeout: limit(20_000) });
@@ -193,13 +208,27 @@ for (const [w, h] of [
         const b = document.querySelector(s)?.getBoundingClientRect();
         return b ? { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height } : null;
       };
-      return { play: r('[data-testid="home-play"]'), ranked: r('[data-testid="home-ranked"]'), practice: r('[data-testid="home-practice"]'), nav: r('.hm-nav'), vw: innerWidth, vh: innerHeight };
+      // a pill's face: its ::before, inset by --alt-pad on touch
+      const face = (s: string) => {
+        const e = document.querySelector(s);
+        return e ? e.getBoundingClientRect().height - 2 * (parseFloat(getComputedStyle(e, '::before').top) || 0) : 0;
+      };
+      const pills = ['[data-testid="home-ranked"]', '[data-testid="home-practice"]', '[data-testid="home-party"]'];
+      return { play: r('[data-testid="home-play"]'), ranked: r(pills[0]!), practice: r(pills[1]!), party: r(pills[2]!), nav: r('.hm-nav'), faces: pills.map(face).filter((x) => x > 0), vw: innerWidth, vh: innerHeight };
     });
     const overlap = (a: { l: number; t: number; r: number; b: number }, b: { l: number; t: number; r: number; b: number }) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
-    for (const k of ['play', 'ranked', 'practice'] as const) {
-      const b = boxes[k]!;
+    // small pills: each face at most 0.4 of PLAY's height and still at least 28 px
+    expect(boxes.faces.length).toBeGreaterThanOrEqual(2);
+    for (const f of boxes.faces) {
+      expect(f).toBeLessThanOrEqual(boxes.play!.h * 0.4);
+      expect(f).toBeGreaterThanOrEqual(28);
+    }
+    for (const k of ['play', 'ranked', 'practice', 'party'] as const) {
+      const b = boxes[k];
+      if (!b) continue;
+      // touch: 44 px targets; a mouse: at least 32 px tall
       expect(b.w, k).toBeGreaterThanOrEqual(44);
-      expect(b.h, k).toBeGreaterThanOrEqual(44);
+      expect(b.h, k).toBeGreaterThanOrEqual(touch ? 44 : 32);
       expect(b.l, k).toBeGreaterThanOrEqual(0);
       expect(b.t, k).toBeGreaterThanOrEqual(0);
       expect(b.r, k).toBeLessThanOrEqual(boxes.vw);
@@ -209,9 +238,10 @@ for (const [w, h] of [
     expect(overlap(boxes.ranked!, boxes.practice!)).toBe(false);
     expect(overlap(boxes.ranked!, boxes.play!)).toBe(false);
     expect(overlap(boxes.practice!, boxes.play!)).toBe(false);
+    if (boxes.party) for (const k of ['ranked', 'practice', 'play'] as const) expect(overlap(boxes.party, boxes[k]!), `party vs ${k}`).toBe(false);
     // PLAY stays the big one
     expect(boxes.play!.h).toBeGreaterThan(boxes.ranked!.h);
     expect(await game.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     await shot(page, `cluster`);
-  });
+  }
 }

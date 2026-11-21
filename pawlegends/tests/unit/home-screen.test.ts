@@ -170,6 +170,24 @@ describe('home screen: one main queue (MODE-UNLOCKS.md, founder Nov 19)', () => 
     expect(onStart).toHaveBeenLastCalledWith({ mode: 'practice', queue: 'bots' });
   });
 
+  it('the pills beside PLAY are compact one-liners (founder Nov 21: smaller): a name and at most a short chip', () => {
+    const modes = modeList(NOW).map((m) => (m.id === 'ranked' ? { ...m, rank: { tier: 'Alley II', lp: 40 } } : m)) as HomeScreenOpts['modes'];
+    const root = mount(online({ onParty: vi.fn(), extras: ['ranked', 'practice'], modes }));
+    const pill = (id: string) => root.querySelector<HTMLElement>(`[data-testid="home-${id}"]`)!;
+    for (const id of ['ranked', 'practice', 'party']) {
+      // one line: no two-line subtitle block, one name, at most one chip
+      expect(pill(id).querySelector('.hm-alt-t')).toBeNull();
+      expect(pill(id).querySelectorAll('.hm-alt-n')).toHaveLength(1);
+      expect(pill(id).querySelectorAll('small').length).toBeLessThanOrEqual(1);
+      expect(pill(id).title.length).toBeGreaterThan(0);
+    }
+    expect(pill('ranked').querySelector('.hm-alt-c')?.textContent).toBe('Alley II');
+    expect(pill('ranked').title).toBe('Ranked 3v3 · Alley II · 40 pts');
+    expect(pill('practice').querySelector('.hm-alt-c')).toBeNull();
+    expect(pill('practice').getAttribute('aria-label')).toBe('Practice: any champion vs training dummies');
+    expect(pill('party').querySelector('.hm-alt-c')?.textContent).toBe('+50% XP');
+  });
+
   it('Practice: Back and Esc close the map pick (no mode tiles behind it)', async () => {
     const root = mount(online({ extras: ['practice'] }));
     root.querySelector<HTMLElement>('[data-testid="home-practice"]')!.click();

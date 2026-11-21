@@ -66,7 +66,9 @@ for (const size of SIZES) {
         expect(await scrollers(page)).toEqual([]);
         // Home (HOME-MODES.md §4): PLAY, the nav, the left stack and the corner: in view and touch
         // sized (the one play path, Nov 12: no quick online buttons any more)
-        expect(await bad(page, '.hm-play, .hm-alt, .hm-ni, .hm-left .hm-round, .hm-profile', 44)).toEqual([]);
+        expect(await bad(page, '.hm-play, .hm-ni, .hm-left .hm-round, .hm-profile', 44)).toEqual([]);
+        // the pills beside PLAY (founder Nov 21: smaller): 44 px targets on touch, a 40 px pill with a mouse
+        expect(await bad(page, '.hm-alt', size.touch ? 44 : 32)).toEqual([]);
         await expect(page.locator('.hm-qb')).toHaveCount(0);
         // no mode pill on Home in any state (one main queue: PLAY is the 3v3 queue)
         await expect(page.locator('[data-testid="mode-pill"]')).toHaveCount(0);

@@ -5,7 +5,7 @@
  * Pass block line. The server pays the real Season XP (backend party-bonus.ts).
  */
 import { describe, expect, it } from 'vitest';
-import { friendMates, PARTY_BUTTON_LINE, PARTY_XP_BONUS, partyBonusChipHtml, partyBonusLineHtml, partyBonusPct, partyBonusXp } from '../../src/meta/partyBonus';
+import { friendMates, PARTY_BUTTON_LINE, PARTY_PILL_CHIP, PARTY_XP_BONUS, partyBonusChipHtml, partyBonusLineHtml, partyBonusPct, partyBonusXp } from '../../src/meta/partyBonus';
 import { lobbyHtml, type LobbyModel } from '../../src/party/ui/partyLobby';
 import { queueCardHtml, type QueueModel } from '../../src/party/ui/queueCard';
 import { extrasHtml } from '../../src/ui/home/homeScreen';
@@ -79,10 +79,11 @@ describe('party XP bonus: the chip', () => {
     expect(dom(queueCardHtml(queue({ party: true, partyMates: 1, match: { humans: 2, bots: 1, side: 'cat', difficulty: 'normal' } }))).querySelector('[data-testid="party-xp-bonus"]')).toBeNull();
   });
 
-  it("Home's Party pill says it", () => {
+  it("Home's Party pill says it: a short chip, the full line in its tooltip", () => {
     expect(PARTY_BUTTON_LINE).toBe('Play with friends · +50% XP');
+    expect(PARTY_PILL_CHIP).toBe('+50% XP');
     const d = dom(extrasHtml({ modes: [] } as never, true));
-    expect(d.querySelector('[data-testid="home-party-line"]')!.textContent).toBe('Play with friends · +50% XP');
+    expect(d.querySelector('[data-testid="home-party-line"]')!.textContent).toBe('+50% XP');
     expect(d.querySelector('[data-testid="home-party"]')!.getAttribute('title')).toBe('Play with friends · +50% XP');
   });
 });

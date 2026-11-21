@@ -25,6 +25,9 @@ export function partyBonusXp(matchXp: number, mates: number): number {
 /** The Party button's line on Home ("Play with friends · +50% XP"). */
 export const PARTY_BUTTON_LINE = `Play with friends · +${PARTY_XP_BONUS.oneMate}% XP`;
 
+/** The Party pill's short chip on Home ("+50% XP"; the full line is its tooltip). */
+export const PARTY_PILL_CHIP = `+${PARTY_XP_BONUS.oneMate}% XP`;
+
 /**
  * The chip on the party lobby and the queue card. `mates` = the other humans in the player's own party: with none, a
  * dim hint that a friend adds the bonus.

@@ -51,7 +51,7 @@ import { HEROES } from '../../data/heroes';
 import { bindEvents, needsTap } from '../events/eventsBind';
 import { liveopsState, onLiveops } from '../../meta/liveops';
 import type { GoalsTab } from './goalsPanel';
-import { PARTY_BUTTON_LINE, PARTY_XP_BONUS } from '../../meta/partyBonus';
+import { PARTY_BUTTON_LINE, PARTY_PILL_CHIP, PARTY_XP_BONUS } from '../../meta/partyBonus';
 import { bindRail, placeRail, railHtml, setRailFriends, type RailFriends, type RailMeta, RAIL_META } from './friendsRail';
 import type { FriendRow } from '../../social/presence';
 
@@ -271,7 +271,9 @@ const DUMMY =
 
 /**
  * The smaller buttons beside PLAY (MODE-UNLOCKS.md, founder Nov 19): Ranked (Lv 10) above Practice (Lv 5), only those
- * this player has. A just-unlocked one carries NEW and pops in once. Ranked shows the player's rank line. Pure.
+ * this player has. A just-unlocked one carries NEW and pops in once. Founder Nov 21 ("practise and party and ranked
+ * buttons needs to be smaller"): compact one-line pills, the name plus at most a short chip (Ranked: the tier; Party:
+ * "+50% XP"); the longer lines live in the tooltip and the label. Pure.
  */
 export function extrasHtml(o: Pick<HomeScreenOpts, 'extras' | 'reveal' | 'modes'>, party = false): string {
   const ids = (o.extras ?? []).filter((id) => EXTRA_NAME[id]);
@@ -283,11 +285,12 @@ export function extrasHtml(o: Pick<HomeScreenOpts, 'extras' | 'reveal' | 'modes'
     const sub = id === 'ranked' ? (rank ? `${rank.tier}${typeof rank.lp === 'number' ? ` · ${rank.lp} pts` : ''}` : '3v3') : 'Any champion';
     const label = id === 'ranked' ? `Ranked 3v3: ${sub}` : 'Practice: any champion vs training dummies';
     const ico = id === 'ranked' ? crestSvg('ranked') : DUMMY;
-    return `<button type="button" class="hm-alt${fresh ? ' fresh' : ''}" data-a="${id}" data-mode="${id}" data-testid="home-${id}" aria-label="${esc(`${label}${fresh ? '. New' : ''}`)}"><span class="hm-alt-i" aria-hidden="true">${ico}</span><span class="hm-alt-t"><b>${name}</b><small>${esc(sub)}</small></span>${fresh ? '<i class="hm-alt-new" aria-hidden="true">NEW</i>' : ''}</button>`;
+    const chip = id === 'ranked' && rank ? `<small class="hm-alt-c" data-testid="home-ranked-tier">${esc(rank.tier)}</small>` : '';
+    return `<button type="button" class="hm-alt${fresh ? ' fresh' : ''}" data-a="${id}" data-mode="${id}" data-testid="home-${id}" aria-label="${esc(`${label}${fresh ? '. New' : ''}`)}" title="${esc(id === 'ranked' ? `Ranked 3v3 · ${sub}` : 'Any champion vs training dummies')}"><span class="hm-alt-i" aria-hidden="true">${ico}</span><b class="hm-alt-n">${name}</b>${chip}${fresh ? '<i class="hm-alt-new" aria-hidden="true">NEW</i>' : ''}</button>`;
   };
   // Nov 19 (the founder: "party button ... should be around the play button"): Party sits with the pills beside PLAY
   const partyBtn = party
-    ? `<button type="button" class="hm-alt" data-a="party" data-mode="party" data-testid="home-party" aria-label="Party: play with friends, plus ${PARTY_XP_BONUS.oneMate}% XP" title="${PARTY_BUTTON_LINE}"><span class="hm-alt-i" aria-hidden="true">${PEOPLE}</span><span class="hm-alt-t"><b>Party</b><small data-testid="home-party-line">${PARTY_BUTTON_LINE}</small></span></button>`
+    ? `<button type="button" class="hm-alt" data-a="party" data-mode="party" data-testid="home-party" aria-label="Party: play with friends, plus ${PARTY_XP_BONUS.oneMate}% XP" title="${PARTY_BUTTON_LINE}"><span class="hm-alt-i" aria-hidden="true">${PEOPLE}</span><b class="hm-alt-n">Party</b><small class="hm-alt-c" data-testid="home-party-line">${PARTY_PILL_CHIP}</small></button>`
     : '';
   return `<div class="hm-extras" role="group" aria-label="More ways to play" data-testid="home-extras">${ids.map(btn).join('')}${partyBtn}</div>`;
 }
